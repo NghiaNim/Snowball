@@ -50,8 +50,13 @@ npm i -g vercel
 # Login to Vercel
 vercel login
 
-# Deploy
+# Deploy (use simple configuration)
 vercel --prod
+
+# If you get runtime errors, the deployment will work fine with just:
+# Framework: Next.js (auto-detected)
+# Build Command: npm run build (auto-detected)
+# Output Directory: .next (auto-detected)
 ```
 
 ### Option 2: Deploy via GitHub Integration
