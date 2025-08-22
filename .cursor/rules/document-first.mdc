@@ -1,0 +1,38 @@
+---
+description: Documentation-first development approach for Snowball platform
+globs: ["**/*.md", "**/*.mdc", "**/*.ts", "**/*.tsx"]
+alwaysApply: true
+---
+
+# Document-First Development
+
+## Core Principle
+Always document requirements and features BEFORE implementing them. This ensures clear understanding, proper planning, and consistent implementation across the team.
+
+## Documentation Requirements
+
+### New Features
+1. **Create separate rule files** for major feature sets
+2. **Update existing MVP requirements** when adding new functionality
+3. **Document user flows** and technical specifications
+4. **Include UI/UX requirements** and constraints
+5. **Specify database schema changes** when applicable
+
+### Rule File Structure
+- Place new rules in `.cursor/rules/` directory
+- Use descriptive filenames (e.g., `admin-features.mdc`)
+- Include proper frontmatter with description and globs
+- Set `alwaysApply: false` for feature-specific rules
+
+### Update Process
+1. Document new requirements in dedicated rule files
+2. Update relevant existing rules (MVP, tech stack, etc.)
+3. Ensure consistency across all documentation
+4. Review and validate before implementation
+
+## Benefits
+- Clear scope definition before coding
+- Consistent implementation standards
+- Easier onboarding for new developers
+- Better project planning and estimation
+- Reduced scope creep and misunderstandings
