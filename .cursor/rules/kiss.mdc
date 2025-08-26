@@ -1,0 +1,6 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Keep everything super simple. The architecture should follow the least complicated design. We want things that work and not complicated with local states and such.

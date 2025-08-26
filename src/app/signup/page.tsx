@@ -69,17 +69,18 @@ function SignupContent() {
     if (step < 3) {
       setStep(step + 1)
     } else {
-      // Complete signup - redirect to appropriate dashboard
+      // Complete signup - redirect to appropriate dashboard with referral token
       const role = linkData?.targetRole || 'founder'
       const sessionToken = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       localStorage.setItem('temp-session', sessionToken)
       localStorage.setItem('temp-role', role)
       
-      if (role === 'investor') {
-        router.push('/dashboard/investor')
-      } else {
-        router.push('/dashboard/founder')
-      }
+      // Include referral token in redirect to apply templates
+      const redirectUrl = referralId 
+        ? (role === 'investor' ? `/dashboard/investor?ref=${referralId}` : `/dashboard/founder?ref=${referralId}`)
+        : (role === 'investor' ? '/dashboard/investor' : '/dashboard/founder')
+      
+      router.push(redirectUrl)
     }
   }
 
@@ -89,11 +90,12 @@ function SignupContent() {
     localStorage.setItem('temp-session', sessionToken)
     localStorage.setItem('temp-role', role)
     
-    if (role === 'investor') {
-      router.push('/dashboard/investor')
-    } else {
-      router.push('/dashboard/founder')
-    }
+    // Include referral token in redirect to apply templates
+    const redirectUrl = referralId 
+      ? (role === 'investor' ? `/dashboard/investor?ref=${referralId}` : `/dashboard/founder?ref=${referralId}`)
+      : (role === 'investor' ? '/dashboard/investor' : '/dashboard/founder')
+    
+    router.push(redirectUrl)
   }
 
   if (isLoading) {
@@ -147,7 +149,7 @@ function SignupContent() {
               <p className="text-gray-700 mb-4">
                 {linkData.welcomeMessage}
               </p>
-              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-opacity-20 bg-gray-900 text-gray-900">
+              <div className="text-white inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-opacity-20 bg-gray-900 text-gray-900">
                 {targetRole === 'investor' ? '🏦 Investor' : '🚀 Founder'} Signup
               </div>
             </div>

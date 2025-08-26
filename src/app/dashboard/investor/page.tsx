@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useRouter } from 'next/navigation'
+import { useTemplateCustomizations } from '@/hooks/useTemplateCustomizations'
+import type { CompanyData } from '@/hooks/useTemplateCustomizations'
 
-// Sample company data
-const sampleCompanies = [
+// Default company data (used when no template companies are provided)
+const defaultCompanies: CompanyData[] = [
   {
     id: 1,
     name: 'TechFlow AI',
@@ -75,6 +77,10 @@ export default function InvestorDashboard() {
   const [trackedCompanies, setTrackedCompanies] = useState<number[]>([])
 
   const router = useRouter()
+  const customizations = useTemplateCustomizations('investor')
+  
+  // Use template companies if available, otherwise use defaults
+  const companies = customizations.companies || defaultCompanies
 
   useEffect(() => {
     const session = localStorage.getItem('temp-session')
@@ -104,7 +110,7 @@ export default function InvestorDashboard() {
     alert(`Meeting request sent to ${companyName}! 🚀\n\nThis is a demo - no real request was sent.`)
   }
 
-  const filteredCompanies = sampleCompanies.filter(company => {
+  const filteredCompanies = companies.filter(company => {
     const matchesSearch = company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          company.description.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesIndustry = selectedIndustry === 'all' || company.industry === selectedIndustry
@@ -123,8 +129,13 @@ export default function InvestorDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Investor Dashboard</h1>
-              <p className="text-sm text-gray-600">Stanford Alumni Network • Deal Flow</p>
+              <h1 
+                className="text-2xl font-bold"
+                style={{ color: customizations.styling?.primaryColor || '#1F2937' }}
+              >
+                {customizations.header?.title || 'Investor Dashboard'}
+              </h1>
+              <p className="text-sm text-gray-600">{customizations.header?.subtitle || 'Stanford Alumni Network • Deal Flow'}</p>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-600">
@@ -147,7 +158,7 @@ export default function InvestorDashboard() {
                 Search Companies
               </label>
               <Input
-                placeholder="Search by name or description..."
+                placeholder={customizations.content?.searchPlaceholder || "Search by name or description..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -213,25 +224,25 @@ export default function InvestorDashboard() {
 
                 <div className="space-y-2 mb-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Industry:</span>
+                    <span className="text-gray-600">{customizations.content?.companyCardTexts?.industryLabel || 'Industry:'}</span>
                     <span className="font-medium">{company.industry}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Stage:</span>
+                    <span className="text-gray-600">{customizations.content?.companyCardTexts?.stageLabel || 'Stage:'}</span>
                     <span className="font-medium">{company.stage}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Target:</span>
+                    <span className="text-gray-600">{customizations.content?.companyCardTexts?.targetLabel || 'Target:'}</span>
                     <span className="font-medium">{company.fundingTarget}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Location:</span>
+                    <span className="text-gray-600">{customizations.content?.companyCardTexts?.locationLabel || 'Location:'}</span>
                     <span className="font-medium">{company.location}</span>
                   </div>
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                  <h4 className="text-xs font-medium text-gray-700 mb-2">Key Metrics</h4>
+                  <h4 className="text-xs font-medium text-gray-700 mb-2">{customizations.content?.companyCardTexts?.metricsTitle || 'Key Metrics'}</h4>
                   <div className="space-y-1">
                     {Object.entries(company.metrics).map(([key, value]) => (
                       <div key={key} className="flex justify-between text-xs">
@@ -249,14 +260,14 @@ export default function InvestorDashboard() {
                     onClick={() => toggleTracking(company.id)}
                     className="flex-1"
                   >
-                    {trackedCompanies.includes(company.id) ? '✓ Tracked' : 'Track'}
+                    {trackedCompanies.includes(company.id) ? '✓ Tracked' : (customizations.content?.companyCardTexts?.trackButtonText || 'Track')}
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => sendKnock(company.name)}
                     className="flex-1"
                   >
-                    🚪 Knock
+                    {customizations.content?.companyCardTexts?.knockButtonText || '🚪 Knock'}
                   </Button>
                 </div>
               </div>

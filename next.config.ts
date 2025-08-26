@@ -1,16 +1,13 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    rules: {
-      '*.svg': {
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
-      },
-    },
+  // Minimal configuration for Turbopack compatibility
+  typescript: {
+    ignoreBuildErrors: false,
   },
-  // Enable Turbopack optimizations
-  transpilePackages: ['@trpc/client', '@trpc/server', '@trpc/react-query'],
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
 }
 
 export default nextConfig
