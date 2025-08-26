@@ -603,34 +603,36 @@ export default function AdminDashboard() {
                     <Button variant="outline" onClick={resetToDefaults}>
                       Reset to Defaults
                     </Button>
-                  <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-                    <DialogTrigger asChild>
+                                      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+                      <DialogTrigger asChild>
                         <Button>Save Template</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
+                      </DialogTrigger>
+                      <DialogContent className="bg-white border border-gray-200 shadow-lg">
+                        <DialogHeader>
                           <DialogTitle>Save Template</DialogTitle>
-                        <DialogDescription>
+                          <DialogDescription>
                             Save your customizations as a reusable template
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Template Name</Label>
-                          <Input
-                            value={templateName}
-                            onChange={(e) => setTemplateName(e.target.value)}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label>Template Name</Label>
+                            <Input
+                              value={templateName}
+                              onChange={(e) => setTemplateName(e.target.value)}
                               placeholder="e.g., MIT Accelerator Demo"
-                          />
-                        </div>
-                        <div>
+                              className="bg-white"
+                            />
+                          </div>
+                          <div>
                             <Label>Description</Label>
-                          <Input
-                            value={templateDescription}
-                            onChange={(e) => setTemplateDescription(e.target.value)}
-                            placeholder="Brief description of this template"
-                          />
-                        </div>
+                            <Input
+                              value={templateDescription}
+                              onChange={(e) => setTemplateDescription(e.target.value)}
+                              placeholder="Brief description of this template"
+                              className="bg-white"
+                            />
+                          </div>
                           <div className="flex justify-end space-x-2">
                             <Button variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>
                               Cancel
