@@ -29,7 +29,12 @@ export default function Home() {
               <h1 className="text-2xl font-bold text-gray-900">Snowball</h1>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <Button variant="ghost" size="sm" className="sm:h-9 sm:px-4" onClick={scrollToSignup}>Sign In</Button>
+              <Link href="/demo">
+                <Button variant="ghost" size="sm" className="sm:h-9 sm:px-4">Demo</Button>
+              </Link>
+              <Link href="/auth/founder/signin">
+                <Button variant="ghost" size="sm" className="sm:h-9 sm:px-4">Snowball Login</Button>
+              </Link>
               <Button size="sm" className="sm:h-9 sm:px-4" onClick={scrollToSignup}>Get Started</Button>
             </div>
           </div>

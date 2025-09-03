@@ -214,7 +214,7 @@ export default function AdminDashboard() {
     // Check if admin is authenticated
     const token = localStorage.getItem('admin-token')
     if (!token) {
-      router.push('/admin')
+      router.push('/demo/admin')
       return
     }
     setIsAuthenticated(true)
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('admin-token')
-    router.push('/admin')
+    router.push('/demo/admin')
   }
 
   const handleGenerateLinks = async (e: React.FormEvent) => {

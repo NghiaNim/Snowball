@@ -1,15 +1,37 @@
-import { initTRPC } from '@trpc/server'
-// Removed unused import
+import { initTRPC, TRPCError } from '@trpc/server'
 import { ZodError } from 'zod'
 import superjson from 'superjson'
+import { createClient } from '@/lib/supabase/server'
+import type { User } from '@/types/database'
 
 /**
  * 1. CONTEXT
  *
  * This section defines the "contexts" that are available in the backend API.
  */
-export const createTRPCContext = () => {
-  return {}
+export const createTRPCContext = async () => {
+  const supabase = await createClient()
+  
+  // Get the current user from Supabase Auth
+  const { data: { user: authUser }, error } = await supabase.auth.getUser()
+  
+  let user: User | null = null
+  
+  if (authUser && !error) {
+    // Get the user profile from our users table
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', authUser.id)
+      .single()
+    
+    user = userProfile
+  }
+
+  return {
+    supabase,
+    user,
+  }
 }
 
 export type Context = Awaited<ReturnType<typeof createTRPCContext>>
@@ -49,3 +71,19 @@ export const createTRPCRouter = t.router
  * Public (unauthenticated) procedure
  */
 export const publicProcedure = t.procedure
+
+/**
+ * Protected (authenticated) procedure
+ */
+export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
+  if (!ctx.user) {
+    throw new TRPCError({ code: 'UNAUTHORIZED' })
+  }
+  return next({
+    ctx: {
+      ...ctx,
+      // infers the `user` as non-nullable
+      user: ctx.user,
+    },
+  })
+})

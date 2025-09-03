@@ -1,0 +1,128 @@
+---
+alwaysApply: true
+description: "Mobile-first responsive design guidelines for the Snowball platform"
+---
+
+# Mobile-First Design Rules
+
+## Core Principle
+Always design and develop with mobile devices as the primary target, then progressively enhance for larger screens. The site must look and function perfectly on mobile devices first.
+
+## Mobile-First Development Guidelines
+
+### Responsive Design Strategy
+- **Start with mobile styles** (320px and up) as the base
+- Use **min-width media queries** to add styles for larger screens
+- Test on mobile devices throughout development, not just desktop
+- Ensure touch-friendly interface elements (minimum 44px touch targets)
+
+### Tailwind CSS Mobile-First Approach
+- Write base styles for mobile (no prefix needed)
+- Use responsive prefixes for larger screens: `sm:`, `md:`, `lg:`, `xl:`, `2xl:`
+- Example: `text-sm md:text-base lg:text-lg` (small text on mobile, larger on desktop)
+
+### Layout Considerations
+- **Stack elements vertically** on mobile, arrange horizontally on larger screens
+- Use **full-width containers** on mobile with appropriate padding
+- Implement **collapsible navigation** for mobile (hamburger menus)
+- Ensure **readable font sizes** on mobile (minimum 16px for body text)
+
+### Touch Interface Requirements
+- **Minimum touch target size**: 44px × 44px for interactive elements
+- **Adequate spacing** between touch targets (minimum 8px)
+- **Large, easy-to-tap buttons** for primary actions
+- **Swipe gestures** where appropriate (carousels, tabs)
+
+### Performance for Mobile
+- **Optimize images** for mobile bandwidth (WebP format, appropriate sizes)
+- **Minimize JavaScript** bundle size for faster mobile loading
+- **Use lazy loading** for images and components below the fold
+- **Prioritize critical CSS** for above-the-fold content
+
+### Mobile-Specific Component Patterns
+- **Bottom sheets** instead of modals on mobile
+- **Tab navigation** at the bottom of the screen
+- **Floating action buttons** for primary actions
+- **Pull-to-refresh** functionality where appropriate
+- **Infinite scroll** instead of pagination on mobile
+
+### Testing Requirements
+- **Test on actual mobile devices**, not just browser dev tools
+- **Test on both iOS and Android** devices
+- **Test in both portrait and landscape** orientations
+- **Test with slow network connections** (3G simulation)
+- **Test touch interactions** and gestures
+
+### Breakpoint Strategy
+```css
+/* Mobile-first breakpoints */
+/* Base: 320px+ (mobile) */
+/* sm: 640px+ (large mobile/small tablet) */
+/* md: 768px+ (tablet) */
+/* lg: 1024px+ (desktop) */
+/* xl: 1280px+ (large desktop) */
+/* 2xl: 1536px+ (extra large desktop) */
+```
+
+### Common Mobile Patterns for Snowball
+
+#### Navigation
+- **Mobile**: Hamburger menu or bottom tab navigation
+- **Desktop**: Horizontal navigation bar
+
+#### Cards and Lists
+- **Mobile**: Single column, full-width cards with vertical stacking
+- **Desktop**: Multi-column grid layouts
+
+#### Forms
+- **Mobile**: Full-width inputs, large buttons, single-column layout
+- **Desktop**: Multi-column forms with appropriate spacing
+
+#### Investor/Founder Dashboards
+- **Mobile**: Vertical card stack, collapsible sections
+- **Desktop**: Multi-column dashboard with sidebars
+
+### Implementation Checklist
+- [ ] All new components start with mobile styles
+- [ ] Touch targets meet minimum size requirements
+- [ ] Text is readable without zooming on mobile
+- [ ] Navigation works well with thumb navigation
+- [ ] Forms are easy to fill out on mobile
+- [ ] Loading states are optimized for mobile networks
+- [ ] Images and media are optimized for mobile
+- [ ] No horizontal scrolling on any mobile screen size
+
+### Code Examples
+
+#### Good Mobile-First CSS Classes
+```html
+<!-- Mobile-first button -->
+<button class="w-full py-3 px-4 text-base md:w-auto md:py-2 md:px-6 md:text-sm">
+  Sign Up
+</button>
+
+<!-- Mobile-first navigation -->
+<nav class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+  <a href="/">Home</a>
+  <a href="/about">About</a>
+</nav>
+
+<!-- Mobile-first grid -->
+<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+  <!-- Cards here -->
+</div>
+```
+
+#### Mobile-First Form Design
+```html
+<!-- Full-width mobile form -->
+<form class="space-y-4 md:space-y-6 max-w-md md:max-w-lg lg:max-w-xl mx-auto">
+  <input class="w-full py-3 px-4 text-base md:py-2 md:text-sm" />
+  <button class="w-full py-3 text-lg md:w-auto md:py-2 md:text-base">
+    Submit
+  </button>
+</form>
+```
+
+## Remember
+Mobile users are often our primary audience. A poor mobile experience will drive users away, regardless of how good the desktop experience is. Always prioritize mobile usability and performance.

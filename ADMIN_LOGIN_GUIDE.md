@@ -7,9 +7,9 @@
    npm run dev
    ```
 
-2. **Visit the admin page**:
+2. **Visit the demo admin page**:
    ```
-   http://localhost:3000/admin
+   http://localhost:3000/demo/admin
    ```
 
 3. **Login credentials**:

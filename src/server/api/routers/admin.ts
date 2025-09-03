@@ -164,8 +164,8 @@ export const adminRouter = createTRPCRouter({
       }
       
       return {
-        investorLink: `${process.env.NEXT_PUBLIC_APP_URL}/signup?ref=${investorToken}`,
-        founderLink: `${process.env.NEXT_PUBLIC_APP_URL}/signup?ref=${founderToken}`,
+        investorLink: `${process.env.NEXT_PUBLIC_APP_URL}/demo/signup?ref=${investorToken}`,
+        founderLink: `${process.env.NEXT_PUBLIC_APP_URL}/demo/signup?ref=${founderToken}`,
         expiresAt: expiresAt.toISOString(),
       }
     }),
@@ -406,8 +406,8 @@ export const adminRouter = createTRPCRouter({
       }
       
       return {
-        investorLink: `${process.env.NEXT_PUBLIC_APP_URL}/signup?ref=${investorToken}`,
-        founderLink: `${process.env.NEXT_PUBLIC_APP_URL}/signup?ref=${founderToken}`,
+        investorLink: `${process.env.NEXT_PUBLIC_APP_URL}/demo/signup?ref=${investorToken}`,
+        founderLink: `${process.env.NEXT_PUBLIC_APP_URL}/demo/signup?ref=${founderToken}`,
         expiresAt: expiresAt.toISOString(),
       }
     }),

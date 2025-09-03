@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
       if (result.success) {
         // Store admin session token
         localStorage.setItem('admin-token', result.token)
-        router.push('/admin/dashboard')
+        router.push('/demo/admin/dashboard')
       }
     } catch {
       setError('Invalid credentials. Please try again.')
@@ -95,11 +95,8 @@ export default function AdminLoginPage() {
             
             <div className="text-center space-y-1">
               <p className="text-xs text-muted-foreground">
-                MVP Admin Access - Hard-coded credentials
+                Sales Team Access - Contact your administrator for credentials
               </p>
-              <div className="text-xs text-muted-foreground bg-muted rounded p-2">
-                <strong>Username:</strong> admin | <strong>Password:</strong> snowball123
-              </div>
             </div>
           </form>
         </CardContent>

@@ -16,19 +16,26 @@ Build the minimum viable two-sided marketplace that validates the core tribe-bas
 4. **Conversion**: Upgrade for additional tribes/curated feed
 
 ### Founder MVP Journey
-1. **Profile Creation**: Sign up → Upload basic materials → Set fundraising status
-2. **Discovery**: Get tracked by investors → Receive knocks from interested VCs
-3. **Engagement**: Connect with investors → Share traction updates
+1. **Profile Creation**: Sign up → Upload basic materials → Set fundraising status → Upload pitch deck
+2. **Discovery**: Get tracked by investors → Receive knocks from interested VCs → Share unique tracking link
+3. **Engagement**: Connect with investors → Share three types of updates (Major/Minor/Coolsies)
 4. **Conversion**: Close funding round → Update success status
+
+### Snowball as First User
+- **MVP Focus**: Snowball company will be the first founder user to validate the platform
+- **Hardcoded Authentication**: Single login for Snowball team (no database needed initially)
+- **Real Investor Database**: Investors will have real accounts to track Snowball's progress
+- **Public Tracking Link**: Unique URL for investors to discover and track Snowball without requiring account
 
 ## Minimum Feature Set
 
 ### Authentication & User Management
-- [ ] Supabase Auth integration
+- [ ] Supabase Auth integration for investors
 - [ ] User role assignment (Investor/Founder)
 - [ ] Basic profile creation
-- [ ] Email verification
+- [ ] Email verification for investors
 - [ ] Hard-coded admin authentication (MVP only)
+- [ ] Hard-coded Snowball founder authentication (single login, no database)
 
 ### Admin Panel & Referral System
 - [ ] Admin login with hard-coded credentials
@@ -51,12 +58,17 @@ Build the minimum viable two-sided marketplace that validates the core tribe-bas
 
 ### Founder Core Features
 - [ ] Company profile creation
-- [ ] Upload pitch deck (Supabase Storage)
+- [ ] Upload pitch deck (Supabase Storage) - PowerPoint/PDF support
 - [ ] Basic company info form
 - [ ] Fundraising status selector (4 dot system)
-- [ ] Traction update form (monthly)
+- [ ] Three types of updates system:
+  - [ ] **Major Updates**: Investor letters with metrics (triggers email to all investors via Resend)
+  - [ ] **Minor Updates**: Functional/progress updates (visible to investors, no email)
+  - [ ] **Coolsies**: Tweet-like posts for quick thoughts/meeting updates
 - [ ] View tracking investors
 - [ ] Respond to knocks (accept/decline meetings)
+- [ ] Generate unique public tracking link for startup
+- [ ] Deck viewing tab for investors
 
 ### Matching & Discovery
 - [ ] Simple recommendation algorithm (tribe + criteria matching)
@@ -68,6 +80,8 @@ Build the minimum viable two-sided marketplace that validates the core tribe-bas
 - [ ] In-app messaging system (basic)
 - [ ] Email notifications for knocks and matches
 - [ ] Meeting request system
+- [ ] **Resend Email Integration**: Major updates automatically email all tracking investors
+- [ ] **Update Types Email Logic**: Only Major updates trigger emails, Minor/Coolsies don't
 
 ## MVP Database Schema (Core Tables)
 
@@ -101,7 +115,12 @@ Build the minimum viable two-sided marketplace that validates the core tribe-bas
 ### Knocks
 - id, investor_id, company_id, status (pending/accepted/declined), message, created_at
 
-### Traction Updates
+### Updates System
+- **Major Updates**: id, company_id, title, content, metrics (JSON), type='major', created_at, email_sent_at
+- **Minor Updates**: id, company_id, title, content, type='minor', created_at  
+- **Coolsies**: id, company_id, content, type='coolsies', created_at
+
+### Legacy Traction Updates (for reference)
 - company_id, month_year, metrics (JSON), notes, created_at
 
 ## MVP UI/UX Requirements
@@ -121,11 +140,18 @@ Build the minimum viable two-sided marketplace that validates the core tribe-bas
 - Tracked companies section
 - Knock history
 
-### Founder Dashboard
-- Profile completion checklist
-- Investor interest overview
-- Knock notifications
-- Traction update form
+### Founder Dashboard (Snowball-specific)
+- **Hardcoded Authentication**: Single login for Snowball team (username/password)
+- **Profile completion checklist**: Company info, deck upload, update history
+- **Investor interest overview**: List of tracking investors
+- **Knock notifications**: Meeting requests from investors
+- **Three-Tab Update System**:
+  - **Major Updates**: Rich editor with metrics template, email preview, investor list
+  - **Minor Updates**: Simple text editor for functional updates
+  - **Coolsies**: Twitter-like quick post interface
+- **Deck Management**: Upload/replace PowerPoint or PDF files
+- **Unique Tracking Link**: Generated URL for investor discovery (e.g., /track/snowball)
+- **Update Timeline**: Chronological view of all updates with type indicators
 
 ### Referral Landing Pages
 - Custom welcome message display

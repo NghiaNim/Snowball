@@ -77,8 +77,8 @@ function SignupContent() {
       
       // Include referral token in redirect to apply templates
       const redirectUrl = referralId 
-        ? (role === 'investor' ? `/dashboard/investor?ref=${referralId}` : `/dashboard/founder?ref=${referralId}`)
-        : (role === 'investor' ? '/dashboard/investor' : '/dashboard/founder')
+        ? (role === 'investor' ? `/demo/dashboard/investor?ref=${referralId}` : `/demo/dashboard/founder?ref=${referralId}`)
+        : (role === 'investor' ? '/demo/dashboard/investor' : '/demo/dashboard/founder')
       
       router.push(redirectUrl)
     }
@@ -92,8 +92,8 @@ function SignupContent() {
     
     // Include referral token in redirect to apply templates
     const redirectUrl = referralId 
-      ? (role === 'investor' ? `/dashboard/investor?ref=${referralId}` : `/dashboard/founder?ref=${referralId}`)
-      : (role === 'investor' ? '/dashboard/investor' : '/dashboard/founder')
+      ? (role === 'investor' ? `/demo/dashboard/investor?ref=${referralId}` : `/demo/dashboard/founder?ref=${referralId}`)
+      : (role === 'investor' ? '/demo/dashboard/investor' : '/demo/dashboard/founder')
     
     router.push(redirectUrl)
   }

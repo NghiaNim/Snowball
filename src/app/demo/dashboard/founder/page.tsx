@@ -66,7 +66,7 @@ export default function FounderDashboard() {
     const session = localStorage.getItem('temp-session')
     const role = localStorage.getItem('temp-role')
     if (!session || role !== 'founder') {
-      router.push('/')
+      router.push('/demo')
       return
     }
     setIsAuthenticated(true)
@@ -75,7 +75,7 @@ export default function FounderDashboard() {
   const handleLogout = () => {
     localStorage.removeItem('temp-session')
     localStorage.removeItem('temp-role')
-    router.push('/')
+    router.push('/demo')
   }
 
   const respondToKnock = (investorName: string, action: 'accept' | 'decline') => {
