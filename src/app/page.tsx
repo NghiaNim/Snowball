@@ -17,25 +17,40 @@ export default function Home() {
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex justify-between items-center py-4 md:py-6">
             <div className="flex items-center">
               <Image
                 src="/snowball.png"
                 alt="Snowball Logo"
-                width={32}
-                height={32}
-                className="mr-3"
+                width={28}
+                height={28}
+                className="mr-2 md:mr-3 md:w-8 md:h-8"
               />
-              <h1 className="text-2xl font-bold text-gray-900">Snowball</h1>
+              <h1 className="text-lg md:text-2xl font-bold text-gray-900">Snowball</h1>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            
+            {/* Mobile Navigation */}
+            <div className="flex items-center space-x-1 md:hidden overflow-x-auto scrollbar-hide flex-shrink-0 min-w-0">
               <Link href="/demo">
-                <Button variant="ghost" size="sm" className="sm:h-9 sm:px-4">Demo</Button>
+                <Button variant="ghost" size="sm" className="text-xs px-2 whitespace-nowrap">Demo</Button>
               </Link>
               <Link href="/auth/founder/signin">
-                <Button variant="ghost" size="sm" className="sm:h-9 sm:px-4">Snowball Login</Button>
+                <Button variant="ghost" size="sm" className="text-xs px-2 whitespace-nowrap">Login</Button>
               </Link>
-              <Button size="sm" className="sm:h-9 sm:px-4" onClick={scrollToSignup}>Get Started</Button>
+              <Button size="sm" className="text-xs px-2 whitespace-nowrap" onClick={scrollToSignup}>
+                Start
+              </Button>
+            </div>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-4">
+              <Link href="/demo">
+                <Button variant="ghost" size="sm" className="h-9 px-4">Demo</Button>
+              </Link>
+              <Link href="/auth/founder/signin">
+                <Button variant="ghost" size="sm" className="h-9 px-4">Founder Login</Button>
+              </Link>
+              <Button size="sm" className="h-9 px-4" onClick={scrollToSignup}>Get Started</Button>
             </div>
           </div>
         </div>
@@ -43,8 +58,8 @@ export default function Home() {
 
       {/* Hero Section */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="pt-20 pb-16 text-center lg:pt-32">
-          <h1 className="mx-auto max-w-4xl font-display text-5xl font-medium tracking-tight text-slate-900 sm:text-7xl">
+        <div className="pt-12 pb-12 text-center md:pt-20 md:pb-16 lg:pt-32">
+          <h1 className="mx-auto max-w-4xl font-display text-3xl font-medium tracking-tight text-slate-900 sm:text-5xl lg:text-7xl">
             Connect
             <span className="relative whitespace-nowrap text-blue-600">
               <svg
@@ -63,12 +78,12 @@ export default function Home() {
             </span>{' '}
             through curated tribes
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg tracking-tight text-slate-700">
+          <p className="mx-auto mt-4 md:mt-6 max-w-2xl text-base md:text-lg tracking-tight text-slate-700 px-4">
             Snowball connects early-stage startups with investors through
             tribe-based networking. Join communities built around accelerators,
             universities, companies, and shared experiences.
           </p>
-          <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4 sm:gap-x-6" id="signup-links">
+          <div className="mt-6 md:mt-10 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 lg:gap-6" id="signup-links">
             <Link href="https://founder.joinsnowball.io" target="_blank" rel="noopener noreferrer">
               <Button size="lg" className="w-full sm:w-auto text-white bg-blue-600 hover:bg-blue-700">I&apos;m a Founder</Button>
             </Link>
@@ -81,12 +96,12 @@ export default function Home() {
         </div>
 
         {/* Feature Sections */}
-        <div className="py-16">
-          <div className="grid grid-cols-1 gap-y-16 lg:grid-cols-2 lg:gap-x-12">
+        <div className="py-12 md:py-16">
+          <div className="grid grid-cols-1 gap-y-12 md:gap-y-16 lg:grid-cols-2 lg:gap-x-12">
             {/* For Founders */}
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">For Founders</h2>
-              <p className="mt-4 text-lg text-gray-600">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">For Founders</h2>
+              <p className="mt-3 md:mt-4 text-base md:text-lg text-gray-600">
                 Get discovered by the right investors through tribe connections
               </p>
               <ul className="mt-8 space-y-4">
@@ -126,8 +141,8 @@ export default function Home() {
 
             {/* For Investors */}
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">For Investors</h2>
-              <p className="mt-4 text-lg text-gray-600">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">For Investors</h2>
+              <p className="mt-3 md:mt-4 text-base md:text-lg text-gray-600">
                 Discover high-quality deal flow through trusted networks
               </p>
               <ul className="mt-8 space-y-4">
@@ -169,14 +184,14 @@ export default function Home() {
         </div>
 
         {/* Tribes Section */}
-        <div className="py-16">
-          <h2 className="text-center text-3xl font-bold text-gray-900">
+        <div className="py-12 md:py-16">
+          <h2 className="text-center text-2xl md:text-3xl font-bold text-gray-900">
             Join Your Tribe
           </h2>
-          <p className="text-center mt-4 text-lg text-gray-600">
+          <p className="text-center mt-3 md:mt-4 text-base md:text-lg text-gray-600 px-4">
             Connect through communities built around shared experiences
           </p>
-          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 md:mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-6">
             {[
               'Y Combinator Alumni',
               'Stanford Network',
@@ -187,10 +202,10 @@ export default function Home() {
             ].map((tribe) => (
               <div
                 key={tribe}
-                className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-200"
+                className="rounded-lg bg-white p-4 md:p-6 shadow-sm ring-1 ring-gray-200"
               >
-                <h3 className="font-semibold text-gray-900">{tribe}</h3>
-                <p className="mt-2 text-sm text-gray-600">
+                <h3 className="text-sm md:text-base font-semibold text-gray-900">{tribe}</h3>
+                <p className="mt-2 text-xs md:text-sm text-gray-600">
                   Connect with founders and investors from your network
                 </p>
               </div>
@@ -201,8 +216,8 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-12 md:flex md:items-center md:justify-between lg:px-8">
-          <div className="mt-8 md:order-1 md:mt-0">
+        <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-12 md:flex md:items-center md:justify-between lg:px-8">
+          <div className="md:order-1">
             <p className="text-center text-xs leading-5 text-gray-500">
               &copy; 2024 Snowball. All rights reserved.
             </p>
