@@ -125,6 +125,10 @@ export default function SnowballDashboard() {
   const uploadPitchDeckMutation = api.company.uploadPitchDeck.useMutation()
   const updateProfileMutation = api.company.updateProfile.useMutation()
   const updateTeamMutation = api.company.updateTeam.useMutation()
+  
+  // Loading states
+  const isCreatingUpdate = createUpdateMutation.isPending
+  const [isLoadingDeck, setIsLoadingDeck] = useState(false)
 
   const router = useRouter()
 
@@ -432,10 +436,10 @@ export default function SnowballDashboard() {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Mobile-first responsive header */}
+          {/* Responsive header - mobile and desktop versions */}
           <div className="py-4 md:py-6">
-            {/* Top row: Logo and company info */}
-            <div className="flex items-center justify-between mb-3 md:mb-0">
+            {/* Mobile: Top row: Logo and company info */}
+            <div className="flex items-center justify-between mb-3 md:mb-0 md:hidden">
               <div className="flex items-center min-w-0 flex-1 pr-2">
                 <Image
                   src="/snowball.png"
@@ -446,7 +450,7 @@ export default function SnowballDashboard() {
                 />
                 <div className="min-w-0 flex-1">
                   <h1 className="text-base md:text-2xl font-bold text-gray-900 truncate">
-                    Snowball Dashboard
+                    Snowball Founder Dashboard
                   </h1>
                   <p className="text-xs md:text-sm text-gray-600 hidden sm:block">
                     Two-sided marketplace for startups & investors
@@ -645,6 +649,7 @@ export default function SnowballDashboard() {
                     onTypeChange={setCreateUpdateType}
                     onSubmit={handleCreateUpdate}
                     onCancel={() => setShowCreateUpdate(false)}
+                    isLoading={isCreatingUpdate}
                   />
                 </CardContent>
               </Card>
@@ -817,8 +822,10 @@ export default function SnowballDashboard() {
                         <Button 
                           variant="outline" 
                           size="sm"
+                          disabled={isLoadingDeck}
                           onClick={async () => {
                             if (pitchDeck.file_url) {
+                              setIsLoadingDeck(true)
                               try {
                                 // Get fresh signed URL
                                 const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(pitchDeck.file_url)}`)
@@ -832,19 +839,23 @@ export default function SnowballDashboard() {
                               } catch (error) {
                                 console.error('Error getting deck URL:', error)
                                 alert('Failed to access deck. Please try again.')
+                              } finally {
+                                setIsLoadingDeck(false)
                               }
                             } else {
                               alert('Deck URL not available. Please re-upload.')
                             }
                           }}
                         >
-                          📄 View Deck
+                          {isLoadingDeck ? '⏳ Loading...' : '📄 View Deck'}
                         </Button>
                         <Button 
                           variant="outline" 
                           size="sm"
+                          disabled={isLoadingDeck}
                           onClick={async () => {
                             if (pitchDeck.file_url) {
+                              setIsLoadingDeck(true)
                               try {
                                 // Get fresh signed URL for download
                                 const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(pitchDeck.file_url)}`)
@@ -861,13 +872,15 @@ export default function SnowballDashboard() {
                               } catch (error) {
                                 console.error('Error getting deck URL:', error)
                                 alert('Failed to download deck. Please try again.')
+                              } finally {
+                                setIsLoadingDeck(false)
                               }
                             } else {
                               alert('Download not available. Please re-upload.')
                             }
                           }}
                         >
-                          📥 Download
+                          {isLoadingDeck ? '⏳ Loading...' : '📥 Download'}
                         </Button>
                       </div>
                     </div>
@@ -993,12 +1006,14 @@ function CreateUpdateForm({
   type, 
   onTypeChange, 
   onSubmit, 
-  onCancel 
+  onCancel,
+  isLoading = false
 }: {
   type: UpdateType
   onTypeChange: (type: UpdateType) => void
   onSubmit: (data: Partial<Update>) => void
   onCancel: () => void
+  isLoading?: boolean
 }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -1156,11 +1171,20 @@ function CreateUpdateForm({
 
       {/* Action Buttons */}
       <div className="flex justify-end space-x-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel}
+          disabled={isLoading}
+        >
           Cancel
         </Button>
-        <Button type="submit">
-          {type === 'major' ? 'Create & Send Email' : 'Create Update'}
+        <Button 
+          type="submit"
+          disabled={isLoading}
+          className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Creating...' : (type === 'major' ? 'Create & Send Email' : 'Create Update')}
         </Button>
       </div>
     </form>
