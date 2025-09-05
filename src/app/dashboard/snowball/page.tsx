@@ -9,11 +9,31 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-// import Link from 'next/link' // Unused import
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ProfileEditForm } from '@/components/dashboard/ProfileEditForm'
+import { TeamEditForm } from '@/components/dashboard/TeamEditForm'
 import Image from 'next/image'
+import { api } from '@/lib/trpc/client'
 
 // Types for updates
 type UpdateType = 'major' | 'minor' | 'coolsies'
+
+// Types for forms
+interface ProfileData {
+  company_name: string
+  industry: string
+  stage: string
+  location: string
+  description: string
+  funding_target: string
+  website: string
+}
+
+interface TeamMember {
+  name: string
+  role: string
+  bio: string
+}
 
 interface UpdateMetrics {
   mrr: number
@@ -32,33 +52,8 @@ interface Update {
   emailSent?: boolean
 }
 
-// Sample tracking investors
-const trackingInvestors = [
-  {
-    id: 1,
-    name: 'Sarah Chen',
-    firm: 'Sequoia Capital',
-    email: 'sarah@sequoia.com',
-    avatar: '👩‍💼',
-    tribe: 'Stanford Alumni'
-  },
-  {
-    id: 2,
-    name: 'Michael Rodriguez',
-    firm: 'Andreessen Horowitz',
-    email: 'michael@a16z.com',
-    avatar: '👨‍💼',
-    tribe: 'Y Combinator'
-  },
-  {
-    id: 3,
-    name: 'Emily Watson',
-    firm: 'Founders Fund',
-    email: 'emily@foundersfund.com',
-    avatar: '👩‍💻',
-    tribe: 'MIT Network'
-  }
-]
+// This will be fetched from the database via tRPC
+// const trackingInvestors = [] // Moved to tRPC
 
 const updateTypeConfig = {
   major: { 
@@ -84,13 +79,52 @@ const updateTypeConfig = {
 export default function SnowballDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
-  const [updates, setUpdates] = useState<Update[]>([])
   const [showCreateUpdate, setShowCreateUpdate] = useState(false)
   const [createUpdateType, setCreateUpdateType] = useState<UpdateType>('major')
   const [deckFile, setDeckFile] = useState<File | null>(null)
-  const [deckUrl, setDeckUrl] = useState<string | null>(null)
-  const [deckPublicUrl, setDeckPublicUrl] = useState<string | null>(null)
   const [uploadingDeck, setUploadingDeck] = useState(false)
+  
+  // Profile editing states
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [isEditingTeam, setIsEditingTeam] = useState(false)
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false)
+  const [pendingProfileUpdate, setPendingProfileUpdate] = useState<ProfileData | null>(null)
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
+  const [isUpdatingTeam, setIsUpdatingTeam] = useState(false)
+  const [profileForm, setProfileForm] = useState({
+    company_name: 'Snowball',
+    industry: 'B2B SaaS - Marketplace',
+    stage: 'Seed',
+    location: 'San Francisco, CA',
+    description: 'Two-sided marketplace connecting early-stage startups with investors through tribe-based networking. Leveraging communities built around accelerators, universities, and companies for high-quality deal flow.',
+    funding_target: '$2,000,000',
+    website: 'https://joinsnowball.io'
+  })
+  const [teamForm, setTeamForm] = useState([
+    { name: 'Alex Johnson', role: 'Co-founder & CEO', bio: 'Former VP Product at Stripe. Stanford MBA.' },
+    { name: 'Sarah Kim', role: 'Co-founder & CTO', bio: 'Ex-Google Staff Engineer. MIT Computer Science.' }
+  ])
+
+  // tRPC hooks
+  const { data: updates = [], refetch: refetchUpdates } = api.company.getUpdates.useQuery(
+    { user_id: 'snowball-demo-user' }
+  )
+  const { data: pitchDeck, refetch: refetchPitchDeck } = api.company.getActivePitchDeck.useQuery(
+    { user_id: 'snowball-demo-user' }
+  )
+  const { data: trackingInvestors = [] } = api.tracking.getFounderTrackers.useQuery(
+    { founder_user_id: 'snowball-demo-user' }
+  )
+  const { data: currentProfile, refetch: refetchProfile } = api.founder.getByUserId.useQuery(
+    { user_id: 'snowball-demo-user' }
+  )
+  const { data: currentTeam = [], refetch: refetchTeam } = api.company.getTeam.useQuery(
+    { user_id: 'snowball-demo-user' }
+  )
+  const createUpdateMutation = api.company.createUpdate.useMutation()
+  const uploadPitchDeckMutation = api.company.uploadPitchDeck.useMutation()
+  const updateProfileMutation = api.company.updateProfile.useMutation()
+  const updateTeamMutation = api.company.updateTeam.useMutation()
 
   const router = useRouter()
 
@@ -117,50 +151,40 @@ export default function SnowballDashboard() {
 
     setIsAuthenticated(true)
 
-    // Load sample updates
-    const sampleUpdates: Update[] = [
-      {
-        id: '1',
-        type: 'major',
-        title: 'December 2024 Investor Update',
-        content: 'Major progress this month with significant traction growth...',
-        metrics: {
-          mrr: 140000,
-          growth: 12,
-          users: 15000,
-          retention: 94
-        },
-        createdAt: new Date('2024-12-15'),
-        emailSent: true
-      },
-      {
-        id: '2',
-        type: 'minor',
-        title: 'Product Feature Launch',
-        content: 'Just launched our new AI-powered automation features. Early user feedback is very positive!',
-        createdAt: new Date('2024-12-10')
-      },
-      {
-        id: '3',
-        type: 'coolsies',
-        content: 'Great meeting with Microsoft partnership team today. Exciting opportunities ahead! 🚀',
-        createdAt: new Date('2024-12-08')
-      }
-    ]
-    setUpdates(sampleUpdates)
-
-    // Load existing deck data
-    const savedDeckPublicUrl = localStorage.getItem('snowball-deck-url')
-    const savedDeckName = localStorage.getItem('snowball-deck-name')
-    const savedDeckFilePath = localStorage.getItem('snowball-deck-file-path')
-    if (savedDeckPublicUrl && savedDeckName && savedDeckFilePath) {
-      setDeckPublicUrl(savedDeckPublicUrl)
-      setDeckUrl(savedDeckFilePath) // Use the GCS file path
-      // Create a fake file object for display
-      const fakeFile = new File([''], savedDeckName, { type: 'application/pdf' })
+    // Set up deck file display if pitch deck exists
+    if (pitchDeck) {
+      const fakeFile = new File([''], pitchDeck.file_name, { 
+        type: pitchDeck.file_type || 'application/pdf' 
+      })
       setDeckFile(fakeFile)
     }
-  }, [router])
+  }, [router, pitchDeck])
+
+  // Update form data when profile data is loaded
+  useEffect(() => {
+    if (currentProfile) {
+      setProfileForm({
+        company_name: currentProfile.company_name || 'Snowball',
+        industry: currentProfile.industry || 'B2B SaaS - Marketplace',
+        stage: currentProfile.stage || 'Seed',
+        location: currentProfile.location || 'San Francisco, CA',
+        description: currentProfile.bio || 'Two-sided marketplace connecting early-stage startups with investors through tribe-based networking. Leveraging communities built around accelerators, universities, and companies for high-quality deal flow.',
+        funding_target: currentProfile.funding_target || '$2,000,000',
+        website: currentProfile.website || 'https://joinsnowball.io'
+      })
+    }
+  }, [currentProfile])
+
+  // Update team data when team data is loaded
+  useEffect(() => {
+    if (currentTeam && currentTeam.length > 0) {
+      setTeamForm(currentTeam.map(member => ({
+        name: member.name,
+        role: member.role,
+        bio: member.bio || ''
+      })))
+    }
+  }, [currentTeam])
 
   const handleLogout = () => {
     localStorage.removeItem('snowball-auth')
@@ -169,56 +193,54 @@ export default function SnowballDashboard() {
   }
 
   const handleCreateUpdate = async (updateData: Partial<Update>) => {
-    const newUpdate: Update = {
-      id: Date.now().toString(),
-      type: createUpdateType,
-      title: updateData.title,
-      content: updateData.content || '',
-      metrics: updateData.metrics,
-      createdAt: new Date(),
-      emailSent: false // Will be updated after email sending
-    }
+    try {
+      await createUpdateMutation.mutateAsync({
+        company_id: 'snowball-demo-user',
+        title: updateData.title || '',
+        content: updateData.content || '',
+        type: createUpdateType,
+        metrics: updateData.metrics ? updateData.metrics as unknown as Record<string, unknown> : undefined,
+      })
 
-    setUpdates([newUpdate, ...updates])
-    setShowCreateUpdate(false)
+      // Refetch updates to get the latest data
+      await refetchUpdates()
+      setShowCreateUpdate(false)
 
-    // Send email for major updates
-    if (createUpdateType === 'major') {
-      try {
-        const emailData = {
-          to: trackingInvestors.map(investor => investor.email),
-          subject: updateData.title || 'Snowball Company Update',
-          content: updateData.content || '',
-          metrics: updateData.metrics
-        }
+      // Send email for major updates
+      if (createUpdateType === 'major') {
+        try {
+          const emailData = {
+            to: trackingInvestors.map(rel => rel.investor?.email || '').filter(Boolean),
+            subject: updateData.title || 'Snowball Company Update',
+            content: updateData.content || '',
+            metrics: updateData.metrics
+          }
 
-        const response = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(emailData),
-        })
+          const response = await fetch('/api/send-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(emailData),
+          })
 
-        const result = await response.json()
+          const result = await response.json()
 
-        if (result.success) {
-          // Update the update to mark email as sent
-          setUpdates(prev => prev.map(update => 
-            update.id === newUpdate.id 
-              ? { ...update, emailSent: true }
-              : update
-          ))
-          alert(`Major update created and emailed to ${result.emailsSent} investors!`)
-        } else {
+          if (result.success) {
+            alert(`Major update created and emailed to ${result.emailsSent} investors!`)
+          } else {
+            alert('Update created but email sending failed. Please try again.')
+          }
+        } catch (error) {
+          console.error('Error sending email:', error)
           alert('Update created but email sending failed. Please try again.')
         }
-      } catch (error) {
-        console.error('Error sending email:', error)
-        alert('Update created but email sending failed. Please try again.')
+      } else {
+        alert(`${updateTypeConfig[createUpdateType].label} created successfully!`)
       }
-    } else {
-      alert(`${updateTypeConfig[createUpdateType].label} created successfully!`)
+    } catch (error) {
+      console.error('Error creating update:', error)
+      alert('Failed to create update. Please try again.')
     }
   }
 
@@ -229,6 +251,7 @@ export default function SnowballDashboard() {
     setUploadingDeck(true)
 
     try {
+      // First upload file to storage
       const formData = new FormData()
       formData.append('file', file)
 
@@ -240,14 +263,20 @@ export default function SnowballDashboard() {
       const result = await response.json()
 
       if (result.success) {
+        // Then save to database via tRPC
+        await uploadPitchDeckMutation.mutateAsync({
+          user_id: 'snowball-demo-user',
+          file_name: file.name,
+          file_url: result.url,
+          public_url: result.publicUrl,
+          file_size: file.size,
+          file_type: file.type,
+          gcs_bucket: result.gcs_bucket,
+          gcs_object_path: result.gcs_object_path,
+        })
+
         setDeckFile(file)
-        setDeckUrl(result.url)
-        setDeckPublicUrl(result.publicUrl)
-        
-        // Save to localStorage for persistence in demo
-        localStorage.setItem('snowball-deck-url', result.publicUrl)
-        localStorage.setItem('snowball-deck-name', file.name)
-        localStorage.setItem('snowball-deck-file-path', result.url) // Store the GCS file path
+        await refetchPitchDeck()
         
         alert('Deck uploaded successfully!')
       } else {
@@ -258,6 +287,134 @@ export default function SnowballDashboard() {
       alert('Upload failed. Please try again.')
     } finally {
       setUploadingDeck(false)
+    }
+  }
+
+  const handleProfileSubmit = (updatedProfile: ProfileData) => {
+    setPendingProfileUpdate(updatedProfile)
+    setShowUpdateDialog(true)
+  }
+
+  const confirmProfileUpdate = async () => {
+    if (!pendingProfileUpdate) return
+
+    setIsUpdatingProfile(true)
+    try {
+      // Get the current profile data to compare changes
+      const originalProfile = profileForm
+      const updatedProfile = pendingProfileUpdate
+      
+      // Generate human-readable change description
+      const changes = []
+      if (originalProfile.company_name !== updatedProfile.company_name) {
+        changes.push(`company name to "${updatedProfile.company_name}"`)
+      }
+      if (originalProfile.industry !== updatedProfile.industry) {
+        changes.push(`industry to "${updatedProfile.industry}"`)
+      }
+      if (originalProfile.stage !== updatedProfile.stage) {
+        changes.push(`funding stage to "${updatedProfile.stage}"`)
+      }
+      if (originalProfile.location !== updatedProfile.location) {
+        changes.push(`location to "${updatedProfile.location}"`)
+      }
+      if (originalProfile.description !== updatedProfile.description) {
+        changes.push(`company description`)
+      }
+      if (originalProfile.funding_target !== updatedProfile.funding_target) {
+        changes.push(`funding target to ${updatedProfile.funding_target}`)
+      }
+      if (originalProfile.website !== updatedProfile.website) {
+        changes.push(`website to ${updatedProfile.website}`)
+      }
+
+      // Update the actual profile in database
+      await updateProfileMutation.mutateAsync({
+        user_id: 'snowball-demo-user',
+        company_name: updatedProfile.company_name,
+        industry: updatedProfile.industry,
+        stage: updatedProfile.stage,
+        location: updatedProfile.location,
+        bio: updatedProfile.description, // Map description to bio field
+        funding_target: updatedProfile.funding_target,
+        website: updatedProfile.website,
+      })
+
+      // Update the local form data
+      setProfileForm(updatedProfile)
+      
+      // Create a human-readable major update
+      const changeText = changes.length > 0 
+        ? `We've updated our ${changes.join(', ')}.` 
+        : 'We have updated our company profile with the latest information.'
+      
+      await createUpdateMutation.mutateAsync({
+        company_id: 'snowball-demo-user',
+        title: 'Company Profile Updated',
+        content: `${changeText} Stay tuned for more exciting updates as we continue to grow!`,
+        type: 'major',
+        metrics: undefined,
+      })
+
+      // Refetch data to show updates
+      await Promise.all([refetchUpdates(), refetchProfile()])
+      
+      setIsEditingProfile(false)
+      setShowUpdateDialog(false)
+      setPendingProfileUpdate(null)
+      
+      alert('Profile updated and investors have been notified!')
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      alert('Failed to update profile. Please try again.')
+    } finally {
+      setIsUpdatingProfile(false)
+    }
+  }
+
+  const handleTeamSubmit = async (updatedTeam: TeamMember[]) => {
+    setIsUpdatingTeam(true)
+    try {
+      // Update team in database
+      await updateTeamMutation.mutateAsync({
+        user_id: 'snowball-demo-user',
+        team_members: updatedTeam,
+      })
+
+      // Update local state
+      setTeamForm(updatedTeam)
+      
+      // Generate human-readable team update message
+      const teamNames = updatedTeam.map(member => member.name).join(', ')
+      const teamCount = updatedTeam.length
+      
+      let updateContent = ''
+      if (teamCount === 1) {
+        updateContent = `We're excited to introduce our leadership: ${teamNames}. Our team brings extensive experience to drive Snowball's mission forward.`
+      } else if (teamCount === 2) {
+        updateContent = `Meet our founding team: ${teamNames}. Together, they bring deep expertise and experience to lead Snowball's growth.`
+      } else {
+        updateContent = `We've updated our team information! Our ${teamCount}-person leadership team includes ${teamNames}, bringing diverse expertise to drive our mission forward.`
+      }
+      
+      // Create a major update about the team change
+      await createUpdateMutation.mutateAsync({
+        company_id: 'snowball-demo-user',
+        title: 'Team Update',
+        content: updateContent,
+        type: 'major',
+        metrics: undefined,
+      })
+
+      await Promise.all([refetchUpdates(), refetchTeam()])
+      setIsEditingTeam(false)
+      
+      alert('Team information updated and investors have been notified!')
+    } catch (error) {
+      console.error('Error updating team:', error)
+      alert('Failed to update team information. Please try again.')
+    } finally {
+      setIsUpdatingTeam(false)
     }
   }
 
@@ -275,30 +432,70 @@ export default function SnowballDashboard() {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Image
-                src="/snowball.png"
-                alt="Snowball Logo"
-                width={32}
-                height={32}
-                className="mr-3"
-              />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Snowball Founder Dashboard</h1>
-                <p className="text-sm text-gray-600">Two-sided marketplace for startups & investors</p>
+          {/* Mobile-first responsive header */}
+          <div className="py-4 md:py-6">
+            {/* Top row: Logo and company info */}
+            <div className="flex items-center justify-between mb-3 md:mb-0">
+              <div className="flex items-center min-w-0 flex-1 pr-2">
+                <Image
+                  src="/snowball.png"
+                  alt="Snowball Logo"
+                  width={28}
+                  height={28}
+                  className="mr-2 md:mr-3 flex-shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-base md:text-2xl font-bold text-gray-900 truncate">
+                    Snowball Dashboard
+                  </h1>
+                  <p className="text-xs md:text-sm text-gray-600 hidden sm:block">
+                    Two-sided marketplace for startups & investors
+                  </p>
+                </div>
+              </div>
+              
+              {/* Mobile: Stacked right side elements */}
+              <div className="flex flex-col items-end space-y-1 md:hidden">
+                <div className="flex items-center space-x-1">
+                  <Badge variant="outline" className="text-green-600 border-green-600 text-xs px-2 py-0.5">
+                    🟢 Active
+                  </Badge>
+                  <Button variant="outline" size="sm" onClick={handleLogout} className="text-xs px-2 py-1">
+                    Logout
+                  </Button>
+                </div>
+                <div className="text-xs text-gray-600">
+                  👤 Snowball Team
+                </div>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Badge variant="outline" className="text-green-600 border-green-600">
-                🟢 Active Fundraising
-              </Badge>
-              <div className="text-sm text-gray-600">
-                👤 Snowball Team
+            
+            {/* Desktop: Horizontal layout */}
+            <div className="hidden md:flex justify-between items-center">
+              <div className="flex items-center">
+                <Image
+                  src="/snowball.png"
+                  alt="Snowball Logo"
+                  width={32}
+                  height={32}
+                  className="mr-3"
+                />
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Snowball Founder Dashboard</h1>
+                  <p className="text-sm text-gray-600">Two-sided marketplace for startups & investors</p>
+                </div>
               </div>
-              <Button variant="outline" onClick={handleLogout}>
-                Logout
-              </Button>
+              <div className="flex items-center space-x-4">
+                <Badge variant="outline" className="text-green-600 border-green-600">
+                  🟢 Active Fundraising
+                </Badge>
+                <div className="text-sm text-gray-600">
+                  👤 Snowball Team
+                </div>
+                <Button variant="outline" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -307,18 +504,18 @@ export default function SnowballDashboard() {
       {/* Navigation Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-4 md:space-x-8 overflow-x-auto scrollbar-hide">
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'updates', label: 'Updates' },
-              { key: 'investors', label: 'Tracking Investors' },
+              { key: 'investors', label: 'Investors' },
               { key: 'deck', label: 'Pitch Deck' },
-              { key: 'profile', label: 'Company Profile' }
+              { key: 'profile', label: 'Profile' }
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-3 md:py-4 px-2 md:px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 ${
                   activeTab === tab.key
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -360,7 +557,7 @@ export default function SnowballDashboard() {
               <Card>
                 <CardContent className="p-6">
                   <div className="text-2xl font-bold text-orange-600">
-                    {deckFile ? 'Uploaded' : 'Pending'}
+                    {pitchDeck ? 'Uploaded' : 'Pending'}
                   </div>
                   <div className="text-sm text-gray-600">Pitch Deck</div>
                 </CardContent>
@@ -385,7 +582,7 @@ export default function SnowballDashboard() {
                   <Button 
                     variant="outline"
                     onClick={() => {
-                      navigator.clipboard.writeText('https://snowball.com/track/snowball')
+                      navigator.clipboard.writeText('https://joinsnowball.io/track/snowball')
                       alert('Link copied to clipboard!')
                     }}
                   >
@@ -410,10 +607,10 @@ export default function SnowballDashboard() {
                           {update.title || update.content.substring(0, 50)}...
                         </p>
                         <p className="text-xs text-gray-600">
-                          {update.createdAt.toLocaleDateString()} • {updateTypeConfig[update.type].label}
+                          {new Date(update.created_at).toLocaleDateString()} • {updateTypeConfig[update.type].label}
                         </p>
                       </div>
-                      {update.emailSent && (
+                      {update.email_sent_at && (
                         <Badge variant="outline" className="text-green-600">
                           📧 Emailed
                         </Badge>
@@ -466,17 +663,18 @@ export default function SnowballDashboard() {
                             {update.title || `${updateTypeConfig[update.type].label}`}
                           </h3>
                           <p className="text-sm text-gray-600">
-                            {update.createdAt.toLocaleDateString()} • {update.createdAt.toLocaleTimeString()}
+                            {new Date(update.created_at).toLocaleDateString()} • {new Date(update.created_at).toLocaleTimeString()}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap">
                         <Badge variant="outline">
                           {updateTypeConfig[update.type].label}
                         </Badge>
-                        {update.emailSent && (
-                          <Badge variant="outline" className="text-green-600">
-                            📧 Emailed to {trackingInvestors.length} investors
+                        {update.email_sent_at && (
+                          <Badge variant="outline" className="text-green-600 text-xs">
+                            <span className="hidden sm:inline">📧 Emailed to {trackingInvestors.length} investors</span>
+                            <span className="sm:hidden">📧 {trackingInvestors.length} investors</span>
                           </Badge>
                         )}
                       </div>
@@ -486,24 +684,32 @@ export default function SnowballDashboard() {
                       <p className="text-gray-700">{update.content}</p>
                     </div>
 
-                    {update.metrics && (
+                    {update.metrics && typeof update.metrics === 'object' && (
                       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-blue-50 rounded-lg p-3 text-center">
-                          <div className="text-xl font-bold text-blue-600">${update.metrics.mrr / 1000}K</div>
-                          <div className="text-xs text-gray-600">MRR</div>
-                        </div>
-                        <div className="bg-green-50 rounded-lg p-3 text-center">
-                          <div className="text-xl font-bold text-green-600">+{update.metrics.growth}%</div>
-                          <div className="text-xs text-gray-600">Growth</div>
-                        </div>
-                        <div className="bg-purple-50 rounded-lg p-3 text-center">
-                          <div className="text-xl font-bold text-purple-600">{update.metrics.users}</div>
-                          <div className="text-xs text-gray-600">Users</div>
-                        </div>
-                        <div className="bg-yellow-50 rounded-lg p-3 text-center">
-                          <div className="text-xl font-bold text-yellow-600">{update.metrics.retention}%</div>
-                          <div className="text-xs text-gray-600">Retention</div>
-                        </div>
+                        {'mrr' in update.metrics && (
+                          <div className="bg-blue-50 rounded-lg p-3 text-center">
+                            <div className="text-xl font-bold text-blue-600">${Number(update.metrics.mrr) / 1000}K</div>
+                            <div className="text-xs text-gray-600">MRR</div>
+                          </div>
+                        )}
+                        {'growth' in update.metrics && (
+                          <div className="bg-green-50 rounded-lg p-3 text-center">
+                            <div className="text-xl font-bold text-green-600">+{String(update.metrics.growth)}%</div>
+                            <div className="text-xs text-gray-600">Growth</div>
+                          </div>
+                        )}
+                        {'users' in update.metrics && (
+                          <div className="bg-purple-50 rounded-lg p-3 text-center">
+                            <div className="text-xl font-bold text-purple-600">{String(update.metrics.users)}</div>
+                            <div className="text-xs text-gray-600">Users</div>
+                          </div>
+                        )}
+                        {'retention' in update.metrics && (
+                          <div className="bg-yellow-50 rounded-lg p-3 text-center">
+                            <div className="text-xl font-bold text-yellow-600">{String(update.metrics.retention)}%</div>
+                            <div className="text-xs text-gray-600">Retention</div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -523,24 +729,36 @@ export default function SnowballDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {trackingInvestors.map((investor) => (
-                <Card key={investor.id}>
+              {trackingInvestors.map((relationship) => (
+                <Card key={relationship.id}>
                   <CardContent className="p-6">
                     <div className="flex items-center space-x-4 mb-4">
-                      <div className="text-3xl">{investor.avatar}</div>
+                      <div className="text-3xl">👤</div>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{investor.name}</h3>
-                        <p className="text-sm text-gray-600">{investor.firm}</p>
-                        <p className="text-xs text-gray-500">{investor.tribe}</p>
+                        <h3 className="font-semibold text-gray-900">{relationship.investor?.investor_name}</h3>
+                        <p className="text-sm text-gray-600">{relationship.investor?.firm_name}</p>
+                        <p className="text-xs text-gray-500">{relationship.investor?.title}</p>
                       </div>
                     </div>
                     <div className="text-sm text-gray-600">
-                      <p>📧 {investor.email}</p>
-                      <p className="mt-2 text-green-600">✅ Receiving major updates</p>
+                      <p>📧 {relationship.investor?.email}</p>
+                      <p className="mt-2 text-green-600">✅ Tracking since {new Date(relationship.created_at).toLocaleDateString()}</p>
+                      {relationship.notes && (
+                        <p className="mt-1 text-xs text-gray-500 italic">&ldquo;{relationship.notes}&rdquo;</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               ))}
+              {trackingInvestors.length === 0 && (
+                <div className="col-span-full text-center py-12 bg-gray-50 rounded-lg">
+                  <div className="text-6xl mb-4">👥</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Tracking Investors Yet</h3>
+                  <p className="text-gray-600">
+                    Investors will appear here when they start tracking Snowball.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -589,7 +807,7 @@ export default function SnowballDashboard() {
                     </Alert>
                   )}
 
-                  {(deckPublicUrl || deckUrl) && (
+                  {pitchDeck && (
                     <div className="border border-gray-200 rounded-lg p-4">
                       <h3 className="font-medium text-gray-900 mb-2">Current Deck</h3>
                       <p className="text-sm text-gray-600 mb-3">
@@ -600,10 +818,10 @@ export default function SnowballDashboard() {
                           variant="outline" 
                           size="sm"
                           onClick={async () => {
-                            if (deckUrl) {
+                            if (pitchDeck.file_url) {
                               try {
                                 // Get fresh signed URL
-                                const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(deckUrl)}`)
+                                const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(pitchDeck.file_url)}`)
                                 const result = await response.json()
                                 
                                 if (result.success) {
@@ -626,16 +844,16 @@ export default function SnowballDashboard() {
                           variant="outline" 
                           size="sm"
                           onClick={async () => {
-                            if (deckUrl) {
+                            if (pitchDeck.file_url) {
                               try {
                                 // Get fresh signed URL for download
-                                const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(deckUrl)}`)
+                                const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(pitchDeck.file_url)}`)
                                 const result = await response.json()
                                 
                                 if (result.success) {
                                   const link = document.createElement('a')
                                   link.href = result.publicUrl
-                                  link.download = deckFile?.name || 'snowball-deck'
+                                  link.download = pitchDeck.file_name || 'snowball-deck'
                                   link.click()
                                 } else {
                                   alert('Failed to download deck. Please try again.')
@@ -662,57 +880,110 @@ export default function SnowballDashboard() {
 
         {activeTab === 'profile' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Company Profile</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Company Profile</h2>
+              <Button 
+                variant={isEditingProfile ? "outline" : "default"}
+                onClick={() => setIsEditingProfile(!isEditingProfile)}
+                disabled={isUpdatingProfile}
+                className={isUpdatingProfile ? "opacity-50 cursor-not-allowed" : ""}
+              >
+                {isEditingProfile ? 'Cancel' : 'Edit Profile'}
+              </Button>
+            </div>
             
             <Card>
               <CardHeader>
                 <CardTitle>Snowball Information</CardTitle>
+                {isEditingProfile && (
+                  <CardDescription>
+                    ⚠️ Editing your profile will send a major update to all tracking investors
+                  </CardDescription>
+                )}
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Company Name</Label>
-                    <Input value="Snowball" readOnly className="mt-1" />
-                  </div>
-                  <div>
-                    <Label>Industry</Label>
-                    <Input value="B2B SaaS - Marketplace" readOnly className="mt-1" />
-                  </div>
-                  <div>
-                    <Label>Stage</Label>
-                    <Input value="Seed" readOnly className="mt-1" />
-                  </div>
-                  <div>
-                    <Label>Location</Label>
-                    <Input value="San Francisco, CA" readOnly className="mt-1" />
-                  </div>
-                </div>
-                
-                <div>
-                  <Label>Description</Label>
-                  <Textarea
-                    className="mt-1"
-                    rows={3}
-                    value="Two-sided marketplace connecting early-stage startups with investors through tribe-based networking. Leveraging communities built around accelerators, universities, and companies for high-quality deal flow."
-                    readOnly
-                  />
-                </div>
+              <CardContent>
+                <ProfileEditForm 
+                  isEditing={isEditingProfile}
+                  formData={profileForm}
+                  onFormChange={setProfileForm}
+                  onSubmit={handleProfileSubmit}
+                  isUpdating={isUpdatingProfile}
+                />
+              </CardContent>
+            </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Funding Target</Label>
-                    <Input value="$2,000,000" readOnly className="mt-1" />
-                  </div>
-                  <div>
-                    <Label>Website</Label>
-                    <Input value="https://joinsnowball.io" readOnly className="mt-1" />
-                  </div>
-                </div>
+            {/* Team Section */}
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-900">Team</h3>
+              <Button 
+                variant={isEditingTeam ? "outline" : "default"}
+                onClick={() => setIsEditingTeam(!isEditingTeam)}
+                disabled={isUpdatingTeam}
+                className={isUpdatingTeam ? "opacity-50 cursor-not-allowed" : ""}
+              >
+                {isEditingTeam ? 'Cancel' : 'Edit Team'}
+              </Button>
+            </div>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Leadership Team</CardTitle>
+                {isEditingTeam && (
+                  <CardDescription>
+                    ⚠️ Editing team information will send a major update to all tracking investors
+                  </CardDescription>
+                )}
+              </CardHeader>
+              <CardContent>
+                <TeamEditForm 
+                  isEditing={isEditingTeam}
+                  teamData={teamForm}
+                  onTeamChange={setTeamForm}
+                  onSubmit={handleTeamSubmit}
+                  isUpdating={isUpdatingTeam}
+                />
               </CardContent>
             </Card>
           </div>
         )}
       </div>
+
+      {/* Profile Update Confirmation Dialog */}
+      <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
+        <DialogContent className="bg-white border-gray-200">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">⚠️ Confirm Profile Update</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Updating your company profile will automatically send a <strong>major update</strong> to all {trackingInvestors.length} investors tracking Snowball. They will be notified about the changes to keep them informed of your progress.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">This action will:</p>
+            <ul className="mt-2 text-sm text-gray-600 list-disc list-inside space-y-1">
+              <li>Update your public company profile</li>
+              <li>Send an email notification to tracking investors</li>
+              <li>Create a major update in your updates feed</li>
+            </ul>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowUpdateDialog(false)}
+              disabled={isUpdatingProfile}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmProfileUpdate}
+              disabled={isUpdatingProfile}
+              className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUpdatingProfile ? 'Updating...' : 'Update & Notify Investors'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -878,7 +1149,7 @@ function CreateUpdateForm({
       {type === 'major' && (
         <Alert>
           <AlertDescription>
-            📧 This major update will be automatically emailed to all {trackingInvestors.length} tracking investors
+            📧 This major update will be automatically emailed to tracking investors
           </AlertDescription>
         </Alert>
       )}

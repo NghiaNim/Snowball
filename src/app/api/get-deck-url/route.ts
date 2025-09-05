@@ -5,6 +5,11 @@ import { Storage } from '@google-cloud/storage'
 const storage = new Storage({
   projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
   keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE,
+  // Fallback to service account key in secret directory if env vars not set
+  ...((!process.env.GOOGLE_CLOUD_PROJECT_ID || !process.env.GOOGLE_CLOUD_KEY_FILE) && {
+    projectId: 'snowball-471001',
+    keyFilename: './secret/snowball-471001-1bb26b3b5cd0.json',
+  })
 })
 
 const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'snowball-pitch-decks'

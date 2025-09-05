@@ -1,11 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import Image from 'next/image'
+import { api } from '@/lib/trpc/client'
+import { createClient } from '@/lib/supabase/client'
 
 // Sample Snowball data (would come from database in real app)
 const snowballData = {
@@ -39,35 +42,7 @@ const snowballData = {
   }
 }
 
-// Sample updates (would come from database)
-const sampleUpdates = [
-  {
-    id: '1',
-    type: 'major' as const,
-    title: 'December 2024 Investor Update',
-    content: 'Major progress this month with significant traction growth. We closed a partnership with Microsoft for enterprise distribution and hired our VP of Sales from Salesforce.',
-    metrics: {
-      mrr: 140000,
-      growth: 12,
-      users: 15000,
-      retention: 94
-    },
-    createdAt: new Date('2024-12-15')
-  },
-  {
-    id: '2',
-    type: 'minor' as const,
-    title: 'Product Feature Launch',
-    content: 'Just launched our new AI-powered automation features. Early user feedback is very positive!',
-    createdAt: new Date('2024-12-10')
-  },
-  {
-    id: '3',
-    type: 'coolsies' as const,
-    content: 'Great meeting with Microsoft partnership team today. Exciting opportunities ahead! 🚀',
-    createdAt: new Date('2024-12-08')
-  }
-]
+// These will be fetched from the database via tRPC
 
 const updateTypeConfig = {
   major: { 
@@ -93,36 +68,224 @@ const updateTypeConfig = {
 export default function SnowballTrackingPage() {
   const [isTracking, setIsTracking] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
-  const [deckUrl, setDeckUrl] = useState<string | null>(null)
-  const [deckName, setDeckName] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const router = useRouter()
 
+  // Fetch real Snowball data using tRPC
+  const { data: snowballRealData, isLoading } = api.company.getSnowballData.useQuery()
+  
+  const updates = snowballRealData?.updates || []
+  const pitchDeck = snowballRealData?.pitchDeck || null
+  const profile = snowballRealData?.profile || null
+  const team = snowballRealData?.team || []
+
+  // Check authentication and tracking status
   useEffect(() => {
-    // Check if user is already tracking
-    const tracking = localStorage.getItem('tracking-snowball')
-    if (tracking === 'true') {
-      setIsTracking(true)
-    }
+    checkAuthStatus()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Load deck data if available
-    const savedDeckFilePath = localStorage.getItem('snowball-deck-file-path')
-    const savedDeckName = localStorage.getItem('snowball-deck-name')
-    if (savedDeckFilePath && savedDeckName) {
-      setDeckUrl(savedDeckFilePath) // Use the GCS file path
-      setDeckName(savedDeckName)
+  const checkAuthStatus = async () => {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        setUser(user)
+        setIsAuthenticated(true)
+        
+        // Check if this user is tracking Snowball
+        await checkTrackingStatus(user.email || '')
+      } else {
+        setIsAuthenticated(false)
+        setUser(null)
+      }
+    } catch (error) {
+      console.error('Auth check error:', error)
+      setIsAuthenticated(false)
+    } finally {
+      setIsCheckingAuth(false)
     }
-  }, [])
-
-  const handleStartTracking = () => {
-    setIsTracking(true)
-    localStorage.setItem('tracking-snowball', 'true')
-    // In a real app, this would create a database entry
-    alert('You are now tracking Snowball! You will receive major updates via email if you have an account.')
   }
 
-  const handleStopTracking = () => {
-    setIsTracking(false)
-    localStorage.removeItem('tracking-snowball')
-    alert('You have stopped tracking Snowball.')
+  const checkTrackingStatus = async (email: string) => {
+    try {
+      const supabase = createClient()
+      
+      // Get investor by email
+      const { data: investor } = await supabase
+        .from('investors')
+        .select('id')
+        .eq('email', email)
+        .eq('is_active', true)
+        .single()
+
+      if (!investor) return
+
+      // Get Snowball's founder ID
+      const { data: snowballFounder } = await supabase
+        .from('founders')
+        .select('id')
+        .eq('user_id', 'snowball-demo-user')
+        .single()
+
+      if (!snowballFounder) return
+
+      // Check if tracking relationship exists
+      const { data: tracking } = await supabase
+        .from('founder_investor_relationships')
+        .select('id, status')
+        .eq('founder_id', snowballFounder.id)
+        .eq('investor_id', investor.id)
+        .eq('relationship_type', 'tracking')
+        .single()
+
+      setIsTracking(!!tracking && tracking.status === 'active')
+    } catch (error) {
+      console.error('Error checking tracking status:', error)
+    }
+  }
+
+  const handleStartTracking = () => {
+    if (!isAuthenticated) {
+      // Redirect to sign in with return URL
+      const returnUrl = encodeURIComponent(window.location.pathname)
+      router.push(`/auth/investor/signin?returnTo=${returnUrl}`)
+      return
+    }
+    
+    // If authenticated, start tracking immediately
+    startTracking()
+  }
+
+  const startTracking = async () => {
+    if (!user?.email) return
+
+    try {
+      const supabase = createClient()
+      
+      // Get investor by user ID
+      const { data: investor } = await supabase
+        .from('investors')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single()
+
+      if (!investor) {
+        alert('Investor profile not found. Please contact support.')
+        return
+      }
+
+      // Get Snowball's founder ID
+      const { data: snowballFounder } = await supabase
+        .from('founders')
+        .select('id')
+        .eq('user_id', 'snowball-demo-user')
+        .single()
+
+      if (!snowballFounder) {
+        alert('Snowball founder record not found. Please contact support.')
+        return
+      }
+
+      // Create or update tracking relationship
+      const { error } = await supabase
+        .from('founder_investor_relationships')
+        .upsert({
+          founder_id: snowballFounder.id,
+          investor_id: investor.id,
+          relationship_type: 'tracking',
+          status: 'active',
+          initiated_by: 'investor',
+          notes: `Started tracking via public page on ${new Date().toISOString()}`,
+          last_interaction_at: new Date().toISOString(),
+        }, {
+          onConflict: 'founder_id,investor_id'
+        })
+
+      if (error) {
+        console.error('Error creating tracking relationship:', error)
+        alert('Failed to start tracking. Please try again.')
+        return
+      }
+
+      setIsTracking(true)
+      alert('Successfully started tracking Snowball! You will receive major updates via email.')
+    } catch (error) {
+      console.error('Error tracking Snowball:', error)
+      alert('Failed to start tracking. Please try again.')
+    }
+  }
+
+  const handleStopTracking = async () => {
+    if (!user?.email) return
+
+    try {
+      const supabase = createClient()
+      
+      // Get investor by user ID
+      const { data: investor } = await supabase
+        .from('investors')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single()
+
+      if (!investor) {
+        alert('Investor profile not found. Please contact support.')
+        return
+      }
+
+      // Get Snowball's founder ID
+      const { data: snowballFounder } = await supabase
+        .from('founders')
+        .select('id')
+        .eq('user_id', 'snowball-demo-user')
+        .single()
+
+      if (!snowballFounder) {
+        alert('Snowball founder record not found. Please contact support.')
+        return
+      }
+
+      // Update tracking relationship to inactive
+      const { error } = await supabase
+        .from('founder_investor_relationships')
+        .update({ 
+          status: 'inactive',
+          last_interaction_at: new Date().toISOString(),
+        })
+        .eq('founder_id', snowballFounder.id)
+        .eq('investor_id', investor.id)
+        .eq('relationship_type', 'tracking')
+
+      if (error) {
+        console.error('Error stopping tracking:', error)
+        alert('Failed to stop tracking. Please try again.')
+        return
+      }
+
+      setIsTracking(false)
+      alert('You have stopped tracking Snowball.')
+    } catch (error) {
+      console.error('Error stopping tracking:', error)
+      alert('Failed to stop tracking. Please try again.')
+    }
+  }
+
+  const handleSignOut = async () => {
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      setIsAuthenticated(false)
+      setUser(null)
+      setIsTracking(false)
+      router.refresh()
+    } catch (error) {
+      console.error('Sign out error:', error)
+    }
   }
 
   return (
@@ -130,7 +293,7 @@ export default function SnowballTrackingPage() {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 sm:py-6 space-y-4 sm:space-y-0">
             <div className="flex items-center">
               <Image
                 src="/snowball.png"
@@ -140,28 +303,61 @@ export default function SnowballTrackingPage() {
                 className="mr-3"
               />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Snowball</h1>
-                <p className="text-sm text-gray-600">Two-sided marketplace for startups & investors</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Snowball</h1>
+                <p className="text-xs sm:text-sm text-gray-600">Two-sided marketplace for startups & investors</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Badge variant="outline" className="text-green-600 border-green-600">
-                🟢 Active Fundraising
-              </Badge>
-              {isTracking ? (
-                <Button variant="outline" onClick={handleStopTracking}>
-                  👀 Tracking
-                </Button>
-              ) : (
-                <Button onClick={handleStartTracking}>
-                  Track Snowball
-                </Button>
-              )}
-              <Link href="/">
-                <Button variant="outline">
-                  Back to Home
-                </Button>
-              </Link>
+            
+            {/* Mobile-first button layout */}
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 sm:items-center">
+              <div className="flex items-center justify-between sm:justify-start">
+                <Badge variant="outline" className="text-green-600 border-green-600 text-xs sm:text-sm">
+                  🟢 Active Fundraising
+                </Badge>
+                <Link href="/" className="sm:hidden">
+                  <Button variant="outline" size="sm">
+                    ← Home
+                  </Button>
+                </Link>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                {isCheckingAuth ? (
+                  <div className="text-sm text-gray-600 text-center sm:text-left">Loading...</div>
+                ) : isAuthenticated ? (
+                  <>
+                    {isTracking ? (
+                      <Button variant="outline" onClick={handleStopTracking} size="sm" className="w-full sm:w-auto">
+                        👀 Tracking
+                      </Button>
+                    ) : (
+                      <Button onClick={handleStartTracking} size="sm" className="w-full sm:w-auto">
+                        Track Snowball
+                      </Button>
+                    )}
+                    <Button variant="outline" onClick={handleSignOut} size="sm" className="w-full sm:w-auto">
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button onClick={handleStartTracking} size="sm" className="w-full sm:w-auto">
+                      Track Snowball
+                    </Button>
+                    <Link href="/auth/investor/signin" className="w-full sm:w-auto">
+                      <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                        Sign In
+                      </Button>
+                    </Link>
+                  </>
+                )}
+                
+                <Link href="/" className="hidden sm:block">
+                  <Button variant="outline" size="sm">
+                    Back to Home
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -170,7 +366,7 @@ export default function SnowballTrackingPage() {
       {/* Navigation Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-2 sm:space-x-8 overflow-x-auto">
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'updates', label: 'Updates' },
@@ -180,7 +376,7 @@ export default function SnowballTrackingPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -196,35 +392,35 @@ export default function SnowballTrackingPage() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Company Info */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{snowballData.company.name}</span>
-                  <Badge variant="outline">{snowballData.company.stage}</Badge>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+                  <span className="text-lg sm:text-xl">{profile?.company_name || snowballData.company.name}</span>
+                  <Badge variant="outline" className="w-fit">{profile?.stage || snowballData.company.stage}</Badge>
                 </CardTitle>
-                <CardDescription>{snowballData.company.description}</CardDescription>
+                <CardDescription className="text-sm leading-relaxed">{profile?.bio || snowballData.company.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <div className="text-sm text-gray-600">Industry</div>
-                    <div className="font-medium">{snowballData.company.industry}</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Industry</div>
+                    <div className="font-medium text-sm sm:text-base">{profile?.industry || snowballData.company.industry}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">Location</div>
-                    <div className="font-medium">{snowballData.company.location}</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Location</div>
+                    <div className="font-medium text-sm sm:text-base">{profile?.location || snowballData.company.location}</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Founded</div>
-                    <div className="font-medium">{snowballData.company.founded}</div>
+                  <div className="sm:col-span-2 lg:col-span-1">
+                    <div className="text-xs sm:text-sm text-gray-600">Funding Target</div>
+                    <div className="font-medium text-sm sm:text-base">{profile?.funding_target || snowballData.company.fundingTarget}</div>
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="text-sm text-gray-600">Website</div>
-                  <Link href={snowballData.company.website} target="_blank" className="text-blue-600 hover:underline">
-                    {snowballData.company.website}
+                  <div className="text-xs sm:text-sm text-gray-600">Website</div>
+                  <Link href={profile?.website || snowballData.company.website} target="_blank" className="text-blue-600 hover:underline text-sm sm:text-base break-all">
+                    {profile?.website || snowballData.company.website}
                   </Link>
                 </div>
               </CardContent>
@@ -232,35 +428,35 @@ export default function SnowballTrackingPage() {
 
             {/* Key Metrics */}
             <Card>
-              <CardHeader>
-                <CardTitle>Key Metrics</CardTitle>
-                <CardDescription>Current performance indicators</CardDescription>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg sm:text-xl">Key Metrics</CardTitle>
+                <CardDescription className="text-sm">Current performance indicators</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+                  <div className="text-center p-3 sm:p-4 bg-blue-50 rounded-lg">
+                    <div className="text-lg sm:text-2xl font-bold text-blue-600">
                       ${Math.round(snowballData.metrics.current.mrr / 1000)}K
                     </div>
-                    <div className="text-sm text-gray-600">Monthly Recurring Revenue</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Monthly Recurring Revenue</div>
                   </div>
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
+                  <div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg">
+                    <div className="text-lg sm:text-2xl font-bold text-green-600">
                       +{snowballData.metrics.current.growth}%
                     </div>
-                    <div className="text-sm text-gray-600">Month-over-Month Growth</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Month-over-Month Growth</div>
                   </div>
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
+                  <div className="text-center p-3 sm:p-4 bg-purple-50 rounded-lg">
+                    <div className="text-lg sm:text-2xl font-bold text-purple-600">
                       {snowballData.metrics.current.users.toLocaleString()}
                     </div>
-                    <div className="text-sm text-gray-600">Active Users</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Active Users</div>
                   </div>
-                  <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                    <div className="text-2xl font-bold text-yellow-600">
+                  <div className="text-center p-3 sm:p-4 bg-yellow-50 rounded-lg">
+                    <div className="text-lg sm:text-2xl font-bold text-yellow-600">
                       {snowballData.metrics.current.retention}%
                     </div>
-                    <div className="text-sm text-gray-600">User Retention</div>
+                    <div className="text-xs sm:text-sm text-gray-600">User Retention</div>
                   </div>
                 </div>
               </CardContent>
@@ -268,29 +464,29 @@ export default function SnowballTrackingPage() {
 
             {/* Fundraising Status */}
             <Card>
-              <CardHeader>
-                <CardTitle>Fundraising Status</CardTitle>
-                <CardDescription>Current funding round progress</CardDescription>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg sm:text-xl">Fundraising Status</CardTitle>
+                <CardDescription className="text-sm">Current funding round progress</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-3 gap-3 sm:gap-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-lg sm:text-2xl font-bold text-blue-600">
                       ${snowballData.fundraising.target.toLocaleString()}
                     </div>
-                    <div className="text-sm text-gray-600">Target</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Target</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-lg sm:text-2xl font-bold text-green-600">
                       ${snowballData.fundraising.raised.toLocaleString()}
                     </div>
-                    <div className="text-sm text-gray-600">Raised</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Raised</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">
+                    <div className="text-lg sm:text-2xl font-bold text-purple-600">
                       {snowballData.fundraising.stage}
                     </div>
-                    <div className="text-sm text-gray-600">Stage</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Stage</div>
                   </div>
                 </div>
               </CardContent>
@@ -299,14 +495,14 @@ export default function SnowballTrackingPage() {
             {/* CTA for Tracking */}
             {!isTracking && (
               <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-6 text-center">
-                  <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                <CardContent className="p-4 sm:p-6 text-center">
+                  <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">
                     Stay Updated on Snowball&apos;s Progress
                   </h3>
-                  <p className="text-blue-700 mb-4">
+                  <p className="text-sm sm:text-base text-blue-700 mb-4">
                     Track Snowball to receive major updates and stay informed about their fundraising journey.
                   </p>
-                  <Button onClick={handleStartTracking} className="bg-blue-600 hover:bg-blue-700">
+                  <Button onClick={handleStartTracking} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
                     🎯 Start Tracking Snowball
                   </Button>
                 </CardContent>
@@ -316,95 +512,124 @@ export default function SnowballTrackingPage() {
         )}
 
         {activeTab === 'updates' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">Company Updates</h2>
-              <div className="text-sm text-gray-600">
-                {sampleUpdates.length} updates posted
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Company Updates</h2>
+              <div className="text-xs sm:text-sm text-gray-600">
+                {isLoading ? 'Loading...' : `${updates.length} updates posted`}
               </div>
             </div>
 
-            <div className="space-y-4">
-              {sampleUpdates.map((update) => (
-                <Card key={update.id} className={updateTypeConfig[update.type].bgColor}>
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">{updateTypeConfig[update.type].icon}</span>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {update.title || updateTypeConfig[update.type].label}
-                          </h3>
-                          <p className="text-sm text-gray-600">
-                            {update.createdAt.toLocaleDateString()} • {update.createdAt.toLocaleTimeString()}
-                          </p>
+            {isLoading ? (
+              <div className="text-center py-8 sm:py-12">
+                <div className="animate-spin rounded-full h-8 sm:h-12 w-8 sm:w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600 text-sm sm:text-base">Loading updates...</p>
+              </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
+                {updates.map((update) => (
+                  <Card key={update.id} className={updateTypeConfig[update.type].bgColor}>
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 space-y-2 sm:space-y-0">
+                        <div className="flex items-start space-x-3">
+                          <span className="text-xl sm:text-2xl">{updateTypeConfig[update.type].icon}</span>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
+                              {update.title || updateTypeConfig[update.type].label}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-gray-600">
+                              {new Date(update.created_at).toLocaleDateString()} • {new Date(update.created_at).toLocaleTimeString()}
+                            </p>
+                          </div>
                         </div>
+                        <Badge variant="outline" className="w-fit text-xs">
+                          {updateTypeConfig[update.type].label}
+                        </Badge>
                       </div>
-                      <Badge variant="outline">
-                        {updateTypeConfig[update.type].label}
-                      </Badge>
-                    </div>
-                    
-                    <div className="prose max-w-none">
-                      <p className="text-gray-700">{update.content}</p>
-                    </div>
+                      
+                      <div className="prose max-w-none">
+                        <p className="text-gray-700 text-sm sm:text-base leading-relaxed">{update.content}</p>
+                      </div>
 
-                    {update.metrics && (
-                      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-white/70 rounded-lg p-3 text-center">
-                          <div className="text-xl font-bold text-blue-600">${update.metrics.mrr / 1000}K</div>
-                          <div className="text-xs text-gray-600">MRR</div>
+                      {update.metrics && typeof update.metrics === 'object' && (
+                        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                          {'mrr' in update.metrics && (
+                            <div className="bg-white/70 rounded-lg p-3 text-center">
+                              <div className="text-lg sm:text-xl font-bold text-blue-600">${Number(update.metrics.mrr) / 1000}K</div>
+                              <div className="text-xs text-gray-600">MRR</div>
+                            </div>
+                          )}
+                          {'growth' in update.metrics && (
+                            <div className="bg-white/70 rounded-lg p-3 text-center">
+                              <div className="text-lg sm:text-xl font-bold text-green-600">+{String(update.metrics.growth)}%</div>
+                              <div className="text-xs text-gray-600">Growth</div>
+                            </div>
+                          )}
+                          {'users' in update.metrics && (
+                            <div className="bg-white/70 rounded-lg p-3 text-center">
+                              <div className="text-lg sm:text-xl font-bold text-purple-600">{String(update.metrics.users)}</div>
+                              <div className="text-xs text-gray-600">Users</div>
+                            </div>
+                          )}
+                          {'retention' in update.metrics && (
+                            <div className="bg-white/70 rounded-lg p-3 text-center">
+                              <div className="text-lg sm:text-xl font-bold text-yellow-600">{String(update.metrics.retention)}%</div>
+                              <div className="text-xs text-gray-600">Retention</div>
+                            </div>
+                          )}
                         </div>
-                        <div className="bg-white/70 rounded-lg p-3 text-center">
-                          <div className="text-xl font-bold text-green-600">+{update.metrics.growth}%</div>
-                          <div className="text-xs text-gray-600">Growth</div>
-                        </div>
-                        <div className="bg-white/70 rounded-lg p-3 text-center">
-                          <div className="text-xl font-bold text-purple-600">{update.metrics.users}</div>
-                          <div className="text-xs text-gray-600">Users</div>
-                        </div>
-                        <div className="bg-white/70 rounded-lg p-3 text-center">
-                          <div className="text-xl font-bold text-yellow-600">{update.metrics.retention}%</div>
-                          <div className="text-xs text-gray-600">Retention</div>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+                {updates.length === 0 && !isLoading && (
+                  <div className="text-center py-8 sm:py-12 bg-gray-50 rounded-lg">
+                    <div className="text-4xl sm:text-6xl mb-4">📝</div>
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No Updates Yet</h3>
+                    <p className="text-sm sm:text-base text-gray-600">
+                      Snowball will post company updates here as they become available.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'deck' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Pitch Deck</h2>
+          <div className="space-y-4 sm:space-y-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Pitch Deck</h2>
             
             <Card>
-              <CardHeader>
-                <CardTitle>Snowball Pitch Deck</CardTitle>
-                <CardDescription>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg sm:text-xl">Snowball Pitch Deck</CardTitle>
+                <CardDescription className="text-sm">
                   View our latest investor presentation
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {deckUrl ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <div className="text-6xl mb-4">📄</div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Pitch Deck Available</h3>
-                    <p className="text-gray-600 mb-2">
+                {isLoading ? (
+                  <div className="text-center py-8 sm:py-12">
+                    <div className="animate-spin rounded-full h-8 sm:h-12 w-8 sm:w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600 text-sm sm:text-base">Loading pitch deck...</p>
+                  </div>
+                ) : pitchDeck ? (
+                  <div className="text-center py-8 sm:py-12 bg-gray-50 rounded-lg">
+                    <div className="text-4xl sm:text-6xl mb-4">📄</div>
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Pitch Deck Available</h3>
+                    <p className="text-sm sm:text-base text-gray-600 mb-2 px-4">
                       Snowball&apos;s investor presentation showcasing our vision, traction, and growth plans.
                     </p>
-                    <p className="text-sm text-gray-500 mb-6">
-                      File: {deckName}
+                    <p className="text-xs sm:text-sm text-gray-500 mb-6 break-all px-4">
+                      File: {pitchDeck.file_name}
                     </p>
-                    <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
                       <Button 
-                        className="mr-3"
+                        className="w-full sm:w-auto"
                         onClick={async () => {
                           try {
                             // Get fresh signed URL
-                            const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(deckUrl)}`)
+                            const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(pitchDeck.file_url)}`)
                             const result = await response.json()
                             
                             if (result.success) {
@@ -422,16 +647,17 @@ export default function SnowballTrackingPage() {
                       </Button>
                       <Button 
                         variant="outline"
+                        className="w-full sm:w-auto"
                         onClick={async () => {
                           try {
                             // Get fresh signed URL for download
-                            const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(deckUrl)}`)
+                            const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(pitchDeck.file_url)}`)
                             const result = await response.json()
                             
                             if (result.success) {
                               const link = document.createElement('a')
                               link.href = result.publicUrl
-                              link.download = deckName || 'snowball-deck'
+                              link.download = pitchDeck.file_name || 'snowball-deck'
                               link.click()
                             } else {
                               alert('Failed to download deck. Please contact the team.')
@@ -447,13 +673,13 @@ export default function SnowballTrackingPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <div className="text-6xl mb-4">📄</div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Pitch Deck Coming Soon</h3>
-                    <p className="text-gray-600 mb-6">
+                  <div className="text-center py-8 sm:py-12 bg-gray-50 rounded-lg">
+                    <div className="text-4xl sm:text-6xl mb-4">📄</div>
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Pitch Deck Coming Soon</h3>
+                    <p className="text-sm sm:text-base text-gray-600 mb-6 px-4">
                       Snowball&apos;s pitch deck will be available here once uploaded.
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-gray-500 px-4">
                       Check back later or contact the team directly for access.
                     </p>
                   </div>
@@ -464,30 +690,45 @@ export default function SnowballTrackingPage() {
         )}
 
         {activeTab === 'team' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Team</h2>
+          <div className="space-y-4 sm:space-y-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Team</h2>
             
             <Card>
-              <CardHeader>
-                <CardTitle>Leadership Team</CardTitle>
-                <CardDescription>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg sm:text-xl">Leadership Team</CardTitle>
+                <CardDescription className="text-sm">
                   Meet the founders building Snowball
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {snowballData.company.team.map((member, index) => (
-                    <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                        {member.name.split(' ').map(n => n[0]).join('')}
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : team.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    {team.map((member, index) => (
+                      <div key={member.id || index} className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3 sm:space-x-4">
+                          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0">
+                            {member.name.split(' ').map((n: string) => n[0]).join('')}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{member.name}</h3>
+                            <p className="text-gray-600 text-xs sm:text-sm">{member.role}</p>
+                          </div>
+                        </div>
+                        {member.bio && (
+                          <p className="text-xs sm:text-sm text-gray-500 leading-relaxed sm:mt-0">{member.bio}</p>
+                        )}
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                        <p className="text-gray-600">{member.role}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No team information available yet.
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -500,8 +741,13 @@ export default function SnowballTrackingPage() {
             <div>
               <p className="text-sm text-blue-700">
                 <strong>Public Tracking Page:</strong> This is Snowball&apos;s public company page. 
-                Investors can track the company and view updates without requiring an account.
-                {isTracking && ' You are currently tracking this company.'}
+                {isAuthenticated ? (
+                  isTracking ? 
+                    ' You are currently tracking this company.' :
+                    ' Click "Track Snowball" to start following their updates.'
+                ) : (
+                  ' Sign in or create an account to track this company and receive updates.'
+                )}
               </p>
             </div>
           </div>

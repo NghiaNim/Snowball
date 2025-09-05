@@ -5,6 +5,11 @@ import { Storage } from '@google-cloud/storage'
 const storage = new Storage({
   projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
   keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE, // Path to service account key
+  // Fallback to service account key in secret directory if env vars not set
+  ...((!process.env.GOOGLE_CLOUD_PROJECT_ID || !process.env.GOOGLE_CLOUD_KEY_FILE) && {
+    projectId: 'snowball-471001',
+    keyFilename: './secret/snowball-471001-1bb26b3b5cd0.json',
+  })
 })
 
 const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'snowball-pitch-decks'
@@ -30,6 +35,12 @@ export async function POST(request: NextRequest) {
         success: true,
         url: fakeUrl,
         publicUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'}${fakeUrl}`,
+        fileName: file.name,
+        originalName: file.name,
+        size: file.size,
+        type: file.type,
+        gcs_bucket: 'snowball-pitch-decks',
+        gcs_object_path: fakeUrl,
         message: 'Demo mode: File upload simulated'
       })
     }
@@ -89,7 +100,9 @@ export async function POST(request: NextRequest) {
       fileName: fileName,
       originalName: file.name,
       size: file.size,
-      type: file.type
+      type: file.type,
+      gcs_bucket: bucketName,
+      gcs_object_path: `pitch-decks/${fileName}`
     })
 
   } catch (error) {

@@ -343,23 +343,25 @@ export default function FounderDashboard() {
                   </div>
 
                   {/* Interaction Bar */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                    <div className="flex items-center space-x-4">
-                      <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
-                        <span>👍</span>
-                        <span>8 likes</span>
-                      </button>
-                      <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
-                        <span>💬</span>
-                        <span>3 comments</span>
-                      </button>
-                      <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
-                        <span>📩</span>
-                        <span>2 DMs</span>
-                      </button>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Viewed by Sarah Chen, Michael Rodriguez, Emily Watson +5 others
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                      <div className="flex items-center space-x-4">
+                        <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
+                          <span>👍</span>
+                          <span>8 likes</span>
+                        </button>
+                        <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
+                          <span>💬</span>
+                          <span>3 comments</span>
+                        </button>
+                        <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
+                          <span>📩</span>
+                          <span>2 DMs</span>
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Viewed by Sarah Chen, Michael Rodriguez, Emily Watson +5 others
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -418,20 +420,22 @@ export default function FounderDashboard() {
                   </div>
 
                   {/* Interaction Bar */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                    <div className="flex items-center space-x-4">
-                      <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
-                        <span>👍</span>
-                        <span>12 likes</span>
-                      </button>
-                      <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
-                        <span>💬</span>
-                        <span>5 comments</span>
-                      </button>
-                      <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
-                        <span>📩</span>
-                        <span>4 DMs</span>
-                      </button>
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                      <div className="flex items-center space-x-4">
+                        <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
+                          <span>👍</span>
+                          <span>12 likes</span>
+                        </button>
+                        <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
+                          <span>💬</span>
+                          <span>5 comments</span>
+                        </button>
+                        <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600">
+                          <span>📩</span>
+                          <span>4 DMs</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
