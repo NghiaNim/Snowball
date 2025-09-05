@@ -65,6 +65,30 @@ const updateTypeConfig = {
   }
 }
 
+const fundraisingStatusConfig = {
+  not_fundraising: {
+    label: 'Not Fundraising',
+    icon: '⚪',
+    color: 'text-gray-600',
+    bgColor: 'bg-gray-50',
+    borderColor: 'border-gray-200'
+  },
+  preparing_to_raise: {
+    label: 'Preparing to Raise',
+    icon: '🟡',
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-200'
+  },
+  actively_fundraising: {
+    label: 'Active Fundraising',
+    icon: '🟢',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200'
+  }
+}
+
 export default function SnowballTrackingPage() {
   const [isTracking, setIsTracking] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
@@ -80,6 +104,7 @@ export default function SnowballTrackingPage() {
   const pitchDeck = snowballRealData?.pitchDeck || null
   const profile = snowballRealData?.profile || null
   const team = snowballRealData?.team || []
+  const fundraisingStatus = snowballRealData?.fundraisingStatus || null
 
   // Check authentication and tracking status
   useEffect(() => {
@@ -311,9 +336,18 @@ export default function SnowballTrackingPage() {
             {/* Mobile-first button layout */}
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 sm:items-center">
               <div className="flex items-center justify-between sm:justify-start">
-                <Badge variant="outline" className="text-green-600 border-green-600 text-xs sm:text-sm">
-                  🟢 Active Fundraising
-                </Badge>
+                {fundraisingStatus ? (
+                  <Badge 
+                    variant="outline" 
+                    className={`${fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.color} ${fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.borderColor} text-xs sm:text-sm`}
+                  >
+                    {fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.icon} {fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.label}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-green-600 border-green-600 text-xs sm:text-sm">
+                    🟢 Active Fundraising
+                  </Badge>
+                )}
                 <Link href="/" className="sm:hidden">
                   <Button variant="outline" size="sm">
                     ← Home

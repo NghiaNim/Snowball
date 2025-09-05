@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ProfileEditForm } from '@/components/dashboard/ProfileEditForm'
 import { TeamEditForm } from '@/components/dashboard/TeamEditForm'
+import { FundraisingStatusForm } from '@/components/dashboard/FundraisingStatusForm'
 import Image from 'next/image'
 import { api } from '@/lib/trpc/client'
 
@@ -36,21 +37,50 @@ interface TeamMember {
   profile_picture_url?: string
 }
 
-interface UpdateMetrics {
-  mrr: number
-  growth: number
-  users: number
-  retention: number
+interface FundraisingStatusData {
+  status: 'not_fundraising' | 'preparing_to_raise' | 'actively_fundraising'
+  target_amount?: number
+  stage?: string
+  deadline?: string
+  notes?: string
 }
 
-interface Update {
+interface CompanyUpdateForEdit {
   id: string
-  type: UpdateType
   title?: string
   content: string
-  metrics?: UpdateMetrics
-  createdAt: Date
-  emailSent?: boolean
+  type: UpdateType
+  metrics?: Record<string, unknown>
+}
+
+interface CreateUpdateData {
+  title?: string
+  content: string
+  metrics?: Record<string, unknown>
+}
+
+const fundraisingStatusConfig = {
+  not_fundraising: {
+    label: 'Not Fundraising',
+    icon: '⚪',
+    color: 'text-gray-600',
+    bgColor: 'bg-gray-50',
+    borderColor: 'border-gray-200'
+  },
+  preparing_to_raise: {
+    label: 'Preparing to Raise',
+    icon: '🟡',
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-200'
+  },
+  actively_fundraising: {
+    label: 'Active Fundraising',
+    icon: '🟢',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200'
+  }
 }
 
 // This will be fetched from the database via tRPC
@@ -88,10 +118,19 @@ export default function SnowballDashboard() {
   // Profile editing states
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [isEditingTeam, setIsEditingTeam] = useState(false)
+  const [isEditingFundraisingStatus, setIsEditingFundraisingStatus] = useState(false)
+  const [editingUpdateId, setEditingUpdateId] = useState<string | null>(null)
+  const [editingUpdateData, setEditingUpdateData] = useState<{
+    title: string
+    content: string
+    type: UpdateType
+    metrics?: Record<string, unknown>
+  } | null>(null)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
   const [pendingProfileUpdate, setPendingProfileUpdate] = useState<ProfileData | null>(null)
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
   const [isUpdatingTeam, setIsUpdatingTeam] = useState(false)
+  const [isUpdatingFundraisingStatus, setIsUpdatingFundraisingStatus] = useState(false)
   const [profileForm, setProfileForm] = useState({
     company_name: 'Snowball',
     industry: 'B2B SaaS - Marketplace',
@@ -105,6 +144,13 @@ export default function SnowballDashboard() {
     { name: 'Alex Johnson', role: 'Co-founder & CEO', bio: 'Former VP Product at Stripe. Stanford MBA.' },
     { name: 'Sarah Kim', role: 'Co-founder & CTO', bio: 'Ex-Google Staff Engineer. MIT Computer Science.' }
   ])
+  const [, setFundraisingStatusForm] = useState<FundraisingStatusData>({
+    status: 'actively_fundraising',
+    target_amount: 2000000,
+    stage: 'Seed',
+    deadline: '',
+    notes: 'Currently raising our seed round to scale our marketplace platform'
+  })
 
   // tRPC hooks
   const { data: updates = [], refetch: refetchUpdates } = api.company.getUpdates.useQuery(
@@ -126,6 +172,12 @@ export default function SnowballDashboard() {
   const uploadPitchDeckMutation = api.company.uploadPitchDeck.useMutation()
   const updateProfileMutation = api.company.updateProfile.useMutation()
   const updateTeamMutation = api.company.updateTeam.useMutation()
+  const updateFundraisingStatusMutation = api.company.updateFundraisingStatus.useMutation()
+  const updateCompanyUpdateMutation = api.company.updateCompanyUpdate.useMutation()
+  const deleteCompanyUpdateMutation = api.company.deleteCompanyUpdate.useMutation()
+  const { data: fundraisingStatus } = api.company.getFundraisingStatus.useQuery(
+    { user_id: 'snowball-demo-user' }
+  )
   
   // Loading states
   const isCreatingUpdate = createUpdateMutation.isPending
@@ -197,14 +249,14 @@ export default function SnowballDashboard() {
     router.push('/')
   }
 
-  const handleCreateUpdate = async (updateData: Partial<Update>) => {
+  const handleCreateUpdate = async (updateData: CreateUpdateData) => {
     try {
       await createUpdateMutation.mutateAsync({
         company_id: 'snowball-demo-user',
         title: updateData.title || '',
         content: updateData.content || '',
         type: createUpdateType,
-        metrics: updateData.metrics ? updateData.metrics as unknown as Record<string, unknown> : undefined,
+        metrics: updateData.metrics,
       })
 
       // Refetch updates to get the latest data
@@ -389,38 +441,95 @@ export default function SnowballDashboard() {
       // Update local state
       setTeamForm(updatedTeam)
       
-      // Generate human-readable team update message
-      const teamNames = updatedTeam.map(member => member.name).join(', ')
-      const teamCount = updatedTeam.length
-      
-      let updateContent = ''
-      if (teamCount === 1) {
-        updateContent = `We're excited to introduce our leadership: ${teamNames}. Our team brings extensive experience to drive Snowball's mission forward.`
-      } else if (teamCount === 2) {
-        updateContent = `Meet our founding team: ${teamNames}. Together, they bring deep expertise and experience to lead Snowball's growth.`
-      } else {
-        updateContent = `We've updated our team information! Our ${teamCount}-person leadership team includes ${teamNames}, bringing diverse expertise to drive our mission forward.`
-      }
-      
-      // Create a major update about the team change
-      await createUpdateMutation.mutateAsync({
-        company_id: 'snowball-demo-user',
-        title: 'Team Update',
-        content: updateContent,
-        type: 'major',
-        metrics: undefined,
-      })
-
-      await Promise.all([refetchUpdates(), refetchTeam()])
+      // Refetch team data
+      await refetchTeam()
       setIsEditingTeam(false)
       
-      alert('Team information updated and investors have been notified!')
+      alert('Team information updated successfully!')
     } catch (error) {
       console.error('Error updating team:', error)
       alert('Failed to update team information. Please try again.')
     } finally {
       setIsUpdatingTeam(false)
     }
+  }
+
+  const handleFundraisingStatusSubmit = async (updatedStatus: FundraisingStatusData) => {
+    setIsUpdatingFundraisingStatus(true)
+    try {
+      // Clean up the data before sending - remove undefined/null values for optional fields
+      const cleanedStatus = {
+        user_id: 'snowball-demo-user',
+        status: updatedStatus.status,
+        ...(updatedStatus.target_amount !== undefined && { target_amount: updatedStatus.target_amount }),
+        ...(updatedStatus.stage !== undefined && updatedStatus.stage !== '' && { stage: updatedStatus.stage }),
+        ...(updatedStatus.deadline !== undefined && updatedStatus.deadline !== '' && { deadline: updatedStatus.deadline }),
+        ...(updatedStatus.notes !== undefined && updatedStatus.notes !== '' && { notes: updatedStatus.notes })
+      }
+
+      // Update fundraising status in database
+      await updateFundraisingStatusMutation.mutateAsync(cleanedStatus)
+
+      setIsEditingFundraisingStatus(false)
+      alert('Fundraising status updated successfully!')
+    } catch (error) {
+      console.error('Error updating fundraising status:', error)
+      alert('Failed to update fundraising status. Please try again.')
+    } finally {
+      setIsUpdatingFundraisingStatus(false)
+    }
+  }
+
+  const handleEditUpdate = (update: CompanyUpdateForEdit) => {
+    setEditingUpdateId(update.id)
+    setEditingUpdateData({
+      title: update.title || '',
+      content: update.content,
+      type: update.type,
+      metrics: update.metrics
+    })
+  }
+
+  const handleSaveUpdateEdit = async () => {
+    if (!editingUpdateId || !editingUpdateData) return
+
+    try {
+      await updateCompanyUpdateMutation.mutateAsync({
+        id: editingUpdateId,
+        title: editingUpdateData.title,
+        content: editingUpdateData.content,
+        type: editingUpdateData.type,
+        metrics: editingUpdateData.metrics
+      })
+
+      await refetchUpdates()
+      setEditingUpdateId(null)
+      setEditingUpdateData(null)
+      alert('Update edited successfully!')
+    } catch (error) {
+      console.error('Error updating update:', error)
+      alert('Failed to edit update. Please try again.')
+    }
+  }
+
+  const handleDeleteUpdate = async (updateId: string) => {
+    if (!confirm('Are you sure you want to delete this update? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      await deleteCompanyUpdateMutation.mutateAsync({ id: updateId })
+      await refetchUpdates()
+      alert('Update deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting update:', error)
+      alert('Failed to delete update. Please try again.')
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingUpdateId(null)
+    setEditingUpdateData(null)
   }
 
   if (!isAuthenticated) {
@@ -462,9 +571,18 @@ export default function SnowballDashboard() {
               {/* Mobile: Stacked right side elements */}
               <div className="flex flex-col items-end space-y-1 md:hidden">
                 <div className="flex items-center space-x-1">
-                  <Badge variant="outline" className="text-green-600 border-green-600 text-xs px-2 py-0.5">
-                    🟢 Active
-                  </Badge>
+                  {fundraisingStatus ? (
+                    <Badge 
+                      variant="outline" 
+                      className={`${fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.color} ${fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.borderColor} text-xs px-2 py-0.5`}
+                    >
+                      {fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.icon} {fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.label}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-green-600 border-green-600 text-xs px-2 py-0.5">
+                      🟢 Active Fundraising
+                    </Badge>
+                  )}
                   <Button variant="outline" size="sm" onClick={handleLogout} className="text-xs px-2 py-1">
                     Logout
                   </Button>
@@ -491,9 +609,18 @@ export default function SnowballDashboard() {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                <Badge variant="outline" className="text-green-600 border-green-600">
-                  🟢 Active Fundraising
-                </Badge>
+                {fundraisingStatus ? (
+                  <Badge 
+                    variant="outline" 
+                    className={`${fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.color} ${fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.borderColor}`}
+                  >
+                    {fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.icon} {fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.label}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-green-600 border-green-600">
+                    🟢 Active Fundraising
+                  </Badge>
+                )}
                 <div className="text-sm text-gray-600">
                   👤 Snowball Team
                 </div>
@@ -515,6 +642,7 @@ export default function SnowballDashboard() {
               { key: 'updates', label: 'Updates' },
               { key: 'investors', label: 'Investors' },
               { key: 'deck', label: 'Pitch Deck' },
+              { key: 'fundraising', label: 'Fundraising' },
               { key: 'profile', label: 'Profile' }
             ].map((tab) => (
               <button
@@ -683,12 +811,70 @@ export default function SnowballDashboard() {
                             <span className="sm:hidden">📧 {trackingInvestors.length} investors</span>
                           </Badge>
                         )}
+                        <div className="flex space-x-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditUpdate(update)}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            ✏️ Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteUpdate(update.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            🗑️ Delete
+                          </Button>
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="prose max-w-none">
-                      <p className="text-gray-700">{update.content}</p>
-                    </div>
+                    {editingUpdateId === update.id ? (
+                      // Edit mode
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="edit-title" className="text-sm font-medium text-gray-700">
+                            Title
+                          </Label>
+                          <Input
+                            id="edit-title"
+                            value={editingUpdateData?.title || ''}
+                            onChange={(e) => setEditingUpdateData(prev => prev ? { ...prev, title: e.target.value } : null)}
+                            className="mt-1"
+                            placeholder="Update title (optional)"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-content" className="text-sm font-medium text-gray-700">
+                            Content *
+                          </Label>
+                          <Textarea
+                            id="edit-content"
+                            value={editingUpdateData?.content || ''}
+                            onChange={(e) => setEditingUpdateData(prev => prev ? { ...prev, content: e.target.value } : null)}
+                            rows={4}
+                            className="mt-1"
+                            placeholder="What's happening at Snowball?"
+                          />
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button onClick={handleSaveUpdateEdit} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                            💾 Save Changes
+                          </Button>
+                          <Button onClick={handleCancelEdit} variant="outline" size="sm">
+                            ✕ Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Display mode
+                      <div className="prose max-w-none">
+                        <p className="text-gray-700">{update.content}</p>
+                      </div>
+                    )}
 
                     {update.metrics && typeof update.metrics === 'object' && (
                       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -892,6 +1078,42 @@ export default function SnowballDashboard() {
           </div>
         )}
 
+        {activeTab === 'fundraising' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Fundraising Status</h2>
+              <Button 
+                variant={isEditingFundraisingStatus ? "outline" : "default"}
+                onClick={() => setIsEditingFundraisingStatus(!isEditingFundraisingStatus)}
+                disabled={isUpdatingFundraisingStatus}
+                className={isUpdatingFundraisingStatus ? "opacity-50 cursor-not-allowed" : ""}
+              >
+                {isEditingFundraisingStatus ? 'Cancel' : 'Update Status'}
+              </Button>
+            </div>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Current Fundraising Status</CardTitle>
+                {isEditingFundraisingStatus && (
+                  <CardDescription>
+                    ⚠️ Updating your fundraising status will be visible on your public tracking page
+                  </CardDescription>
+                )}
+              </CardHeader>
+              <CardContent>
+                <FundraisingStatusForm 
+                  isEditing={isEditingFundraisingStatus}
+                  statusData={fundraisingStatus}
+                  onStatusChange={setFundraisingStatusForm}
+                  onSubmit={handleFundraisingStatusSubmit}
+                  isUpdating={isUpdatingFundraisingStatus}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {activeTab === 'profile' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -944,7 +1166,7 @@ export default function SnowballDashboard() {
                 <CardTitle>Leadership Team</CardTitle>
                 {isEditingTeam && (
                   <CardDescription>
-                    ⚠️ Editing team information will send a major update to all tracking investors
+                    ✏️ Update your team information (changes will not trigger investor notifications)
                   </CardDescription>
                 )}
               </CardHeader>
@@ -1013,7 +1235,7 @@ function CreateUpdateForm({
 }: {
   type: UpdateType
   onTypeChange: (type: UpdateType) => void
-  onSubmit: (data: Partial<Update>) => void
+  onSubmit: (data: CreateUpdateData) => void
   onCancel: () => void
   isLoading?: boolean
 }) {
@@ -1025,19 +1247,37 @@ function CreateUpdateForm({
     users: '',
     retention: ''
   })
+  const [includeMetrics, setIncludeMetrics] = useState({
+    mrr: true,
+    growth: true,
+    users: true,
+    retention: true
+  })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    const updateData: Partial<Update> = {
+    // Only include metrics that are selected and have values
+    const selectedMetrics: Record<string, number> = {}
+    if (type === 'major') {
+      if (includeMetrics.mrr && metrics.mrr) {
+        selectedMetrics.mrr = parseInt(metrics.mrr) || 0
+      }
+      if (includeMetrics.growth && metrics.growth) {
+        selectedMetrics.growth = parseInt(metrics.growth) || 0
+      }
+      if (includeMetrics.users && metrics.users) {
+        selectedMetrics.users = parseInt(metrics.users) || 0
+      }
+      if (includeMetrics.retention && metrics.retention) {
+        selectedMetrics.retention = parseInt(metrics.retention) || 0
+      }
+    }
+
+    const updateData: CreateUpdateData = {
       title: type !== 'coolsies' ? title : undefined,
       content,
-      metrics: type === 'major' ? {
-        mrr: parseInt(metrics.mrr) || 0,
-        growth: parseInt(metrics.growth) || 0,
-        users: parseInt(metrics.users) || 0,
-        retention: parseInt(metrics.retention) || 0
-      } : undefined
+      metrics: type === 'major' && Object.keys(selectedMetrics).length > 0 ? selectedMetrics : undefined
     }
 
     onSubmit(updateData)
@@ -1113,8 +1353,19 @@ function CreateUpdateForm({
       {type === 'major' && (
         <div>
           <Label className="text-base font-medium">Key Metrics</Label>
+          <p className="text-sm text-gray-600 mt-1 mb-4">Choose which metrics to include in your update</p>
           <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="include-mrr"
+                  checked={includeMetrics.mrr}
+                  onChange={(e) => setIncludeMetrics({ ...includeMetrics, mrr: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <Label htmlFor="include-mrr" className="text-sm">Include MRR</Label>
+              </div>
               <Label htmlFor="mrr" className="text-sm">MRR ($)</Label>
               <Input
                 id="mrr"
@@ -1123,9 +1374,20 @@ function CreateUpdateForm({
                 onChange={(e) => setMetrics({ ...metrics, mrr: e.target.value })}
                 placeholder="140000"
                 className="mt-1"
+                disabled={!includeMetrics.mrr}
               />
             </div>
             <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="include-growth"
+                  checked={includeMetrics.growth}
+                  onChange={(e) => setIncludeMetrics({ ...includeMetrics, growth: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <Label htmlFor="include-growth" className="text-sm">Include Growth</Label>
+              </div>
               <Label htmlFor="growth" className="text-sm">Growth (%)</Label>
               <Input
                 id="growth"
@@ -1134,9 +1396,20 @@ function CreateUpdateForm({
                 onChange={(e) => setMetrics({ ...metrics, growth: e.target.value })}
                 placeholder="12"
                 className="mt-1"
+                disabled={!includeMetrics.growth}
               />
             </div>
             <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="include-users"
+                  checked={includeMetrics.users}
+                  onChange={(e) => setIncludeMetrics({ ...includeMetrics, users: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <Label htmlFor="include-users" className="text-sm">Include Users</Label>
+              </div>
               <Label htmlFor="users" className="text-sm">Active Users</Label>
               <Input
                 id="users"
@@ -1145,9 +1418,20 @@ function CreateUpdateForm({
                 onChange={(e) => setMetrics({ ...metrics, users: e.target.value })}
                 placeholder="15000"
                 className="mt-1"
+                disabled={!includeMetrics.users}
               />
             </div>
             <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="include-retention"
+                  checked={includeMetrics.retention}
+                  onChange={(e) => setIncludeMetrics({ ...includeMetrics, retention: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <Label htmlFor="include-retention" className="text-sm">Include Retention</Label>
+              </div>
               <Label htmlFor="retention" className="text-sm">Retention (%)</Label>
               <Input
                 id="retention"
@@ -1156,6 +1440,7 @@ function CreateUpdateForm({
                 onChange={(e) => setMetrics({ ...metrics, retention: e.target.value })}
                 placeholder="94"
                 className="mt-1"
+                disabled={!includeMetrics.retention}
               />
             </div>
           </div>

@@ -51,6 +51,23 @@ const updateTeamSchema = z.object({
   })),
 })
 
+const updateFundraisingStatusSchema = z.object({
+  user_id: z.string(),
+  status: z.enum(['not_fundraising', 'preparing_to_raise', 'actively_fundraising']),
+  target_amount: z.number().optional(),
+  stage: z.string().optional(),
+  deadline: z.string().nullable().optional(), // ISO date string, can be null
+  notes: z.string().optional(),
+})
+
+const updateCompanyUpdateSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().optional(),
+  content: z.string(),
+  type: z.enum(['major', 'minor', 'coolsies']),
+  metrics: z.record(z.string(), z.unknown()).optional(),
+})
+
 const getUserUpdatesSchema = z.object({
   user_id: z.string().optional(),
   limit: z.number().min(1).max(100).default(20),
@@ -318,7 +335,104 @@ export const companyRouter = createTRPCRouter({
       return data as CompanyUpdate[]
     }),
 
-  // For the track/snowball page - get Snowball's updates, deck, profile, and team
+  // Update fundraising status
+  updateFundraisingStatus: publicProcedure
+    .input(updateFundraisingStatusSchema)
+    .mutation(async ({ input }) => {
+      const supabase = await createClient()
+
+      const updateData: Record<string, unknown> = {
+        status: input.status,
+        updated_at: new Date().toISOString(),
+      }
+
+      if (input.target_amount !== undefined) updateData.target_amount = input.target_amount
+      if (input.stage !== undefined) updateData.stage = input.stage
+      if (input.deadline !== undefined) updateData.deadline = input.deadline
+      if (input.notes !== undefined) updateData.notes = input.notes
+
+      const { data, error } = await supabase
+        .from('fundraising_status')
+        .upsert({
+          user_id: input.user_id,
+          ...updateData,
+        }, {
+          onConflict: 'user_id'
+        })
+        .select()
+        .single()
+
+      if (error) {
+        throw new Error(`Failed to update fundraising status: ${error.message}`)
+      }
+
+      return data
+    }),
+
+  // Get fundraising status
+  getFundraisingStatus: publicProcedure
+    .input(z.object({ user_id: z.string() }))
+    .query(async ({ input }) => {
+      const supabase = await createClient()
+
+      const { data, error } = await supabase
+        .from('fundraising_status')
+        .select('*')
+        .eq('user_id', input.user_id)
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        throw new Error(`Failed to fetch fundraising status: ${error.message}`)
+      }
+
+      return data || null
+    }),
+
+  // Update existing company update
+  updateCompanyUpdate: publicProcedure
+    .input(updateCompanyUpdateSchema)
+    .mutation(async ({ input }) => {
+      const supabase = await createClient()
+
+      const { data, error } = await supabase
+        .from('company_updates')
+        .update({
+          title: input.title,
+          content: input.content,
+          type: input.type,
+          metrics: input.metrics || {},
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', input.id)
+        .select()
+        .single()
+
+      if (error) {
+        throw new Error(`Failed to update company update: ${error.message}`)
+      }
+
+      return data as CompanyUpdate
+    }),
+
+  // Delete company update
+  deleteCompanyUpdate: publicProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ input }) => {
+      const supabase = await createClient()
+
+      const { error } = await supabase
+        .from('company_updates')
+        .delete()
+        .eq('id', input.id)
+
+      if (error) {
+        throw new Error(`Failed to delete company update: ${error.message}`)
+      }
+
+      return { success: true }
+    }),
+
+  // For the track/snowball page - get Snowball's updates, deck, profile, team, and fundraising status
   getSnowballData: publicProcedure
     .query(async () => {
       const supabase = await createClient()
@@ -369,11 +483,23 @@ export const companyRouter = createTRPCRouter({
         throw new Error(`Failed to fetch Snowball team: ${teamError.message}`)
       }
 
+      // Get Snowball's fundraising status
+      const { data: fundraisingStatus, error: statusError } = await supabase
+        .from('fundraising_status')
+        .select('*')
+        .eq('user_id', 'snowball-demo-user')
+        .single()
+
+      if (statusError && statusError.code !== 'PGRST116') {
+        throw new Error(`Failed to fetch Snowball fundraising status: ${statusError.message}`)
+      }
+
       return {
         updates: updates as CompanyUpdate[],
         pitchDeck: pitchDeck as PitchDeck | null,
         profile: profile,
         team: team || [],
+        fundraisingStatus: fundraisingStatus || null,
       }
     }),
 })
