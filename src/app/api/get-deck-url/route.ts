@@ -4,9 +4,16 @@ import { Storage } from '@google-cloud/storage'
 // Initialize Google Cloud Storage
 const storage = new Storage({
   projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-  keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE,
-  // Fallback to service account key in secret directory if env vars not set
-  ...((!process.env.GOOGLE_CLOUD_PROJECT_ID || !process.env.GOOGLE_CLOUD_KEY_FILE) && {
+  // Use credentials from environment variable if available (production)
+  ...(process.env.GOOGLE_CLOUD_CREDENTIALS && {
+    credentials: JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS),
+  }),
+  // Fallback to key file if credentials not available (development)
+  ...(!process.env.GOOGLE_CLOUD_CREDENTIALS && process.env.GOOGLE_CLOUD_KEY_FILE && {
+    keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE,
+  }),
+  // Final fallback to local secret file (development only)
+  ...((!process.env.GOOGLE_CLOUD_CREDENTIALS && !process.env.GOOGLE_CLOUD_KEY_FILE) && {
     projectId: 'snowball-471001',
     keyFilename: './secret/snowball-471001-1bb26b3b5cd0.json',
   })

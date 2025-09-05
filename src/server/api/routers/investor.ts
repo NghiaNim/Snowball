@@ -29,6 +29,10 @@ const feedbackSchema = z.object({
   reason: z.string().optional(),
 })
 
+const subscriptionTierSchema = z.object({
+  tier: z.enum(['free', 'premium', 'enterprise', 'custom']),
+})
+
 export const investorRouter = createTRPCRouter({
   // Get current investor profile
   getProfile: protectedProcedure
@@ -197,40 +201,79 @@ export const investorRouter = createTRPCRouter({
       return data as CompanyWithProfile[]
     }),
 
-  // Track/untrack a company
+  // Track/untrack a company (with credit system)
   toggleTracking: protectedProcedure
     .input(trackCompanySchema)
     .mutation(async ({ ctx, input }) => {
       const supabase = await createClient()
 
+      // Get investor info with current credits
+      const { data: investor, error: investorError } = await supabase
+        .from('investors')
+        .select('id, credits, subscription_tier')
+        .eq('user_id', ctx.user.id)
+        .single()
+
+      if (investorError) {
+        throw new Error(`Failed to fetch investor info: ${investorError.message}`)
+      }
+
       // Check if already tracking
       const { data: existing } = await supabase
-        .from('tracking')
+        .from('founder_investor_relationships')
         .select('*')
-        .eq('investor_id', ctx.user.id)
-        .eq('company_id', input.company_id)
+        .eq('investor_id', investor.id)
+        .eq('founder_id', input.company_id) // assuming company_id is founder_id
+        .eq('relationship_type', 'tracking')
         .single()
 
       if (existing) {
-        // Untrack
-        const { error } = await supabase
-          .from('tracking')
+        // Untrack - refund credits
+        const { error: deleteError } = await supabase
+          .from('founder_investor_relationships')
           .delete()
-          .eq('investor_id', ctx.user.id)
-          .eq('company_id', input.company_id)
+          .eq('investor_id', investor.id)
+          .eq('founder_id', input.company_id)
+          .eq('relationship_type', 'tracking')
 
-        if (error) {
-          throw new Error(`Failed to untrack company: ${error.message}`)
+        if (deleteError) {
+          throw new Error(`Failed to untrack company: ${deleteError.message}`)
         }
 
-        return { tracked: false }
-      } else {
-        // Track
-        const { data, error } = await supabase
-          .from('tracking')
+        // Refund 100 credits
+        const newCredits = investor.credits + 100
+        await supabase
+          .from('investors')
+          .update({ credits: newCredits })
+          .eq('id', investor.id)
+
+        // Record the transaction
+        await supabase
+          .from('credit_transactions')
           .insert({
-            investor_id: ctx.user.id,
-            company_id: input.company_id,
+            investor_id: investor.id,
+            amount: 100,
+            transaction_type: 'untrack_startup',
+            startup_id: input.company_id,
+            description: 'Credits refunded for untracking startup'
+          })
+
+        return { tracked: false, credits: newCredits }
+      } else {
+        // Track - check credits first
+        if (investor.credits < 100) {
+          throw new Error('Insufficient credits. Please upgrade your subscription or purchase more credits.')
+        }
+
+        // Track the company
+        const { data, error } = await supabase
+          .from('founder_investor_relationships')
+          .insert({
+            investor_id: investor.id,
+            founder_id: input.company_id,
+            relationship_type: 'tracking',
+            status: 'active',
+            initiated_by: 'investor'
           })
           .select()
           .single()
@@ -239,7 +282,25 @@ export const investorRouter = createTRPCRouter({
           throw new Error(`Failed to track company: ${error.message}`)
         }
 
-        return { tracked: true, data }
+        // Deduct 100 credits
+        const newCredits = investor.credits - 100
+        await supabase
+          .from('investors')
+          .update({ credits: newCredits })
+          .eq('id', investor.id)
+
+        // Record the transaction
+        await supabase
+          .from('credit_transactions')
+          .insert({
+            investor_id: investor.id,
+            amount: -100,
+            transaction_type: 'track_startup',
+            startup_id: input.company_id,
+            description: 'Credits used for tracking startup'
+          })
+
+        return { tracked: true, data, credits: newCredits }
       }
     }),
 
@@ -343,5 +404,118 @@ export const investorRouter = createTRPCRouter({
       })
 
       return { success: true }
+    }),
+
+  // Get investor credits and subscription info
+  getCreditsInfo: protectedProcedure
+    .query(async ({ ctx }) => {
+      const supabase = await createClient()
+      
+      const { data: investor, error } = await supabase
+        .from('investors')
+        .select('credits, subscription_tier, max_credits, subscription_expires_at')
+        .eq('user_id', ctx.user.id)
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        throw new Error(`Failed to fetch credits info: ${error.message}`)
+      }
+
+      return investor || { credits: 0, subscription_tier: 'free', max_credits: 100, subscription_expires_at: null }
+    }),
+
+  // Update subscription tier
+  updateSubscriptionTier: protectedProcedure
+    .input(subscriptionTierSchema)
+    .mutation(async ({ ctx, input }) => {
+      const supabase = await createClient()
+
+      // Get current investor info
+      const { data: investor, error: fetchError } = await supabase
+        .from('investors')
+        .select('id, credits')
+        .eq('user_id', ctx.user.id)
+        .single()
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch investor: ${fetchError.message}`)
+      }
+
+      // Determine new credit limits based on tier
+      const tierLimits = {
+        free: 100,
+        premium: 300,
+        enterprise: 1000,
+        custom: 10000 // placeholder for custom tier
+      }
+
+      const newMaxCredits = tierLimits[input.tier]
+      const creditDifference = newMaxCredits - investor.credits
+
+      // Update subscription and add credits if upgrading
+      const updateData: Record<string, unknown> = {
+        subscription_tier: input.tier,
+        max_credits: newMaxCredits,
+        subscription_expires_at: input.tier !== 'free' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null
+      }
+
+      if (creditDifference > 0) {
+        updateData.credits = newMaxCredits
+      }
+
+      const { data, error } = await supabase
+        .from('investors')
+        .update(updateData)
+        .eq('id', investor.id)
+        .select()
+        .single()
+
+      if (error) {
+        throw new Error(`Failed to update subscription: ${error.message}`)
+      }
+
+      // Record credit transaction if credits were added
+      if (creditDifference > 0) {
+        await supabase
+          .from('credit_transactions')
+          .insert({
+            investor_id: investor.id,
+            amount: creditDifference,
+            transaction_type: 'subscription_purchase',
+            description: `Credits added for ${input.tier} subscription upgrade`
+          })
+      }
+
+      return data
+    }),
+
+  // Get credit transaction history
+  getCreditHistory: protectedProcedure
+    .query(async ({ ctx }) => {
+      const supabase = await createClient()
+
+      // Get investor ID first
+      const { data: investor, error: investorError } = await supabase
+        .from('investors')
+        .select('id')
+        .eq('user_id', ctx.user.id)
+        .single()
+
+      if (investorError) {
+        throw new Error(`Failed to fetch investor: ${investorError.message}`)
+      }
+      
+      const { data, error } = await supabase
+        .from('credit_transactions')
+        .select('*')
+        .eq('investor_id', investor.id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (error) {
+        throw new Error(`Failed to fetch credit history: ${error.message}`)
+      }
+
+      return data
     }),
 })
