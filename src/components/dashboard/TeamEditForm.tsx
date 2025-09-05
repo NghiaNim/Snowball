@@ -1,16 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
+import Image from 'next/image'
 
 interface TeamMember {
   name: string
   role: string
   bio: string
+  profile_picture_url?: string
 }
 
 interface TeamEditFormProps {
@@ -19,6 +21,7 @@ interface TeamEditFormProps {
   onTeamChange: (data: TeamMember[]) => void
   onSubmit: (data: TeamMember[]) => void
   isUpdating?: boolean
+  userId?: string
 }
 
 export function TeamEditForm({
@@ -26,9 +29,12 @@ export function TeamEditForm({
   teamData,
   onTeamChange,
   onSubmit,
-  isUpdating = false
+  isUpdating = false,
+  userId = 'snowball-demo-user'
 }: TeamEditFormProps) {
   const [localTeamData, setLocalTeamData] = useState<TeamMember[]>(teamData)
+  const [uploadingImages, setUploadingImages] = useState<{ [key: number]: boolean }>({})
+  const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({})
 
   const handleMemberChange = (index: number, field: keyof TeamMember, value: string) => {
     const updatedTeam = [...localTeamData]
@@ -38,10 +44,61 @@ export function TeamEditForm({
   }
 
   const addMember = () => {
-    const newMember: TeamMember = { name: '', role: '', bio: '' }
+    const newMember: TeamMember = { name: '', role: '', bio: '', profile_picture_url: '' }
     const updatedTeam = [...localTeamData, newMember]
     setLocalTeamData(updatedTeam)
     onTeamChange(updatedTeam)
+  }
+
+  const handleImageUpload = async (index: number, file: File) => {
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB')
+      return
+    }
+
+    setUploadingImages(prev => ({ ...prev, [index]: true }))
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('teamMemberId', `member-${index}-${Date.now()}`)
+      formData.append('userId', userId)
+      formData.append('memberName', localTeamData[index].name)
+
+      const response = await fetch('/api/upload-profile-pic', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        const updatedTeam = [...localTeamData]
+        updatedTeam[index] = { ...updatedTeam[index], profile_picture_url: result.url }
+        setLocalTeamData(updatedTeam)
+        onTeamChange(updatedTeam)
+      } else {
+        alert('Failed to upload image. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      alert('Failed to upload image. Please try again.')
+    } finally {
+      setUploadingImages(prev => ({ ...prev, [index]: false }))
+    }
+  }
+
+  const handleImageClick = (index: number) => {
+    fileInputRefs.current[index]?.click()
   }
 
   const removeMember = (index: number) => {
@@ -67,9 +124,21 @@ export function TeamEditForm({
           <Card key={index} className="border border-gray-200">
             <CardContent className="p-4">
               <div className="flex items-start space-x-4">
-                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-                  {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </div>
+                {member.profile_picture_url ? (
+                  <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
+                    <Image
+                      src={member.profile_picture_url}
+                      alt={`${member.name} profile picture`}
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+                    {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <h4 className="text-lg font-semibold text-gray-900">{member.name}</h4>
                   <p className="text-sm text-gray-600 mb-2">{member.role}</p>
@@ -112,6 +181,76 @@ export function TeamEditForm({
                     Remove
                   </Button>
                 )}
+              </div>
+
+              {/* Profile Picture Upload */}
+              <div className="mb-4">
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Profile Picture
+                </Label>
+                <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    {member.profile_picture_url ? (
+                      <div className="w-16 h-16 rounded-full overflow-hidden">
+                        <Image
+                          src={member.profile_picture_url}
+                          alt={`${member.name} profile picture`}
+                          width={64}
+                          height={64}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                        <span className="text-gray-400 text-sm">No image</span>
+                      </div>
+                    )}
+                    {uploadingImages[index] && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      ref={(el) => {
+                        fileInputRefs.current[index] = el
+                      }}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleImageUpload(index, file)
+                      }}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleImageClick(index)}
+                      disabled={uploadingImages[index]}
+                    >
+                      {member.profile_picture_url ? 'Change Photo' : 'Upload Photo'}
+                    </Button>
+                    {member.profile_picture_url && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const updatedTeam = [...localTeamData]
+                          updatedTeam[index] = { ...updatedTeam[index], profile_picture_url: '' }
+                          setLocalTeamData(updatedTeam)
+                          onTeamChange(updatedTeam)
+                        }}
+                        className="ml-2 text-red-600 hover:text-red-700"
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">

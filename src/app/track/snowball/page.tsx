@@ -690,47 +690,107 @@ export default function SnowballTrackingPage() {
         )}
 
         {activeTab === 'team' && (
-          <div className="space-y-4 sm:space-y-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Team</h2>
+          <div className="space-y-6 sm:space-y-8">
+            <div className="text-center">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Leadership Team</h2>
+              <p className="text-gray-600 text-sm sm:text-base">Meet the founders building Snowball</p>
+            </div>
             
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg sm:text-xl">Leadership Team</CardTitle>
-                <CardDescription className="text-sm">
-                  Meet the founders building Snowball
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : team.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    {team.map((member, index) => (
-                      <div key={member.id || index} className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3 sm:space-x-4">
-                          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0">
-                            {member.name.split(' ').map((n: string) => n[0]).join('')}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{member.name}</h3>
-                            <p className="text-gray-600 text-xs sm:text-sm">{member.role}</p>
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            ) : team.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
+                {team.map((member, index) => (
+                  <Card key={member.id || index} className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-white">
+                    <CardContent className="p-6 sm:p-8">
+                      <div className="flex flex-col items-center text-center space-y-4">
+                        {/* Profile Picture */}
+                        <div className="relative">
+                          {member.profile_picture_url ? (
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden ring-4 ring-blue-100 group-hover:ring-blue-200 transition-all duration-300">
+                              <Image
+                                src={member.profile_picture_url}
+                                alt={`${member.name} profile picture`}
+                                width={96}
+                                height={96}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl sm:text-3xl font-bold ring-4 ring-blue-100 group-hover:ring-blue-200 transition-all duration-300">
+                              {member.name.split(' ').map((n: string) => n[0]).join('')}
+                            </div>
+                          )}
+                          {/* Status indicator */}
+                          <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
                           </div>
                         </div>
+
+                        {/* Name and Role */}
+                        <div className="space-y-1">
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">
+                            {member.name}
+                          </h3>
+                          <p className="text-blue-600 font-medium text-sm sm:text-base">
+                            {member.role}
+                          </p>
+                        </div>
+
+                        {/* Bio */}
                         {member.bio && (
-                          <p className="text-xs sm:text-sm text-gray-500 leading-relaxed sm:mt-0">{member.bio}</p>
+                          <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-sm">
+                            {member.bio}
+                          </p>
                         )}
+
+                        {/* Social Links Placeholder */}
+                        <div className="flex space-x-3 pt-2">
+                          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-blue-100 transition-colors duration-200 cursor-pointer">
+                            <span className="text-gray-600 text-sm">in</span>
+                          </div>
+                          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-blue-100 transition-colors duration-200 cursor-pointer">
+                            <span className="text-gray-600 text-sm">@</span>
+                          </div>
+                          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-blue-100 transition-colors duration-200 cursor-pointer">
+                            <span className="text-gray-600 text-sm">📧</span>
+                          </div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    No team information available yet.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">👥</span>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Team Information Yet</h3>
+                <p className="text-gray-500 text-sm sm:text-base">
+                  Team information will be available here once the founders update their profiles.
+                </p>
+              </div>
+            )}
+
+            {/* Company Culture Section */}
+            <div className="mt-12 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 sm:p-8">
+              <div className="text-center max-w-2xl mx-auto">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Our Mission</h3>
+                <p className="text-gray-700 text-sm sm:text-base leading-relaxed mb-6">
+                  We&apos;re building the future of startup-investor connections through tribe-based networking. 
+                  Our team combines deep product experience from Stripe with technical expertise from Google 
+                  to create meaningful relationships in the startup ecosystem.
+                </p>
+                <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
+                  <span className="bg-white px-3 py-1 rounded-full">🚀 Product-First</span>
+                  <span className="bg-white px-3 py-1 rounded-full">🤝 Community-Driven</span>
+                  <span className="bg-white px-3 py-1 rounded-full">📈 Data-Informed</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

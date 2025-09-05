@@ -33,6 +33,7 @@ interface TeamMember {
   name: string
   role: string
   bio: string
+  profile_picture_url?: string
 }
 
 interface UpdateMetrics {
@@ -954,6 +955,7 @@ export default function SnowballDashboard() {
                   onTeamChange={setTeamForm}
                   onSubmit={handleTeamSubmit}
                   isUpdating={isUpdatingTeam}
+                  userId="snowball-demo-user"
                 />
               </CardContent>
             </Card>

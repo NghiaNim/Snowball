@@ -47,6 +47,7 @@ const updateTeamSchema = z.object({
     name: z.string(),
     role: z.string(),
     bio: z.string(),
+    profile_picture_url: z.string().optional(),
   })),
 })
 
@@ -236,6 +237,7 @@ export const companyRouter = createTRPCRouter({
           name: member.name,
           role: member.role,
           bio: member.bio,
+          profile_picture_url: member.profile_picture_url,
         }))
 
         const { data, error } = await supabase
