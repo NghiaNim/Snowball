@@ -100,6 +100,15 @@ export default function SnowballTrackingPage() {
   // Fetch real Snowball data using tRPC
   const { data: snowballRealData, isLoading } = api.company.getSnowballData.useQuery()
   
+  // Fetch investor credit information if authenticated
+  const { data: creditsInfo, refetch: refetchCredits } = api.investor.getCreditsInfo.useQuery(undefined, {
+    enabled: isAuthenticated, // Only fetch if user is authenticated
+    refetchOnMount: true,
+  })
+
+  // tRPC mutation for tracking with credit system
+  const toggleTrackingMutation = api.investor.toggleTracking.useMutation()
+  
   const updates = snowballRealData?.updates || []
   const pitchDeck = snowballRealData?.pitchDeck || null
   const profile = snowballRealData?.profile || null
@@ -188,59 +197,28 @@ export default function SnowballTrackingPage() {
     if (!user?.email) return
 
     try {
-      const supabase = createClient()
+      // Use tRPC mutation with credit system
+      const result = await toggleTrackingMutation.mutateAsync({
+        company_id: 'f497a07f-18e7-45ad-a531-03a27c0a05ba' // Snowball founder ID
+      })
+
+      setIsTracking(result.tracked)
       
-      // Get investor by user ID
-      const { data: investor } = await supabase
-        .from('investors')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single()
-
-      if (!investor) {
-        alert('Investor profile not found. Please contact support.')
-        return
+      // Refetch credits to update the UI
+      await refetchCredits()
+      
+      if (result.tracked) {
+        alert(`Successfully started tracking Snowball! You now have ${result.credits} credits remaining. You will receive major updates via email.`)
+      } else {
+        alert(`You have stopped tracking Snowball. Your credits have been refunded to ${result.credits}.`)
       }
-
-      // Get Snowball's founder ID
-      const { data: snowballFounder } = await supabase
-        .from('founders')
-        .select('id')
-        .eq('user_id', 'snowball-demo-user')
-        .single()
-
-      if (!snowballFounder) {
-        alert('Snowball founder record not found. Please contact support.')
-        return
+    } catch (error: unknown) {
+      console.error('Error toggling tracking:', error)
+      if (error instanceof Error && error.message.includes('Insufficient credits')) {
+        alert('Insufficient credits. Please upgrade your subscription to track more startups.')
+      } else {
+        alert('Failed to toggle tracking. Please try again.')
       }
-
-      // Create or update tracking relationship
-      const { error } = await supabase
-        .from('founder_investor_relationships')
-        .upsert({
-          founder_id: snowballFounder.id,
-          investor_id: investor.id,
-          relationship_type: 'tracking',
-          status: 'active',
-          initiated_by: 'investor',
-          notes: `Started tracking via public page on ${new Date().toISOString()}`,
-          last_interaction_at: new Date().toISOString(),
-        }, {
-          onConflict: 'founder_id,investor_id'
-        })
-
-      if (error) {
-        console.error('Error creating tracking relationship:', error)
-        alert('Failed to start tracking. Please try again.')
-        return
-      }
-
-      setIsTracking(true)
-      alert('Successfully started tracking Snowball! You will receive major updates via email.')
-    } catch (error) {
-      console.error('Error tracking Snowball:', error)
-      alert('Failed to start tracking. Please try again.')
     }
   }
 
@@ -248,54 +226,21 @@ export default function SnowballTrackingPage() {
     if (!user?.email) return
 
     try {
-      const supabase = createClient()
+      // Use tRPC mutation with credit system (this will toggle off tracking and refund credits)
+      const result = await toggleTrackingMutation.mutateAsync({
+        company_id: 'f497a07f-18e7-45ad-a531-03a27c0a05ba' // Snowball founder ID
+      })
+
+      setIsTracking(result.tracked)
       
-      // Get investor by user ID
-      const { data: investor } = await supabase
-        .from('investors')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single()
-
-      if (!investor) {
-        alert('Investor profile not found. Please contact support.')
-        return
+      // Refetch credits to update the UI
+      await refetchCredits()
+      
+      if (!result.tracked) {
+        alert(`You have stopped tracking Snowball. Your credits have been refunded to ${result.credits}.`)
       }
-
-      // Get Snowball's founder ID
-      const { data: snowballFounder } = await supabase
-        .from('founders')
-        .select('id')
-        .eq('user_id', 'snowball-demo-user')
-        .single()
-
-      if (!snowballFounder) {
-        alert('Snowball founder record not found. Please contact support.')
-        return
-      }
-
-      // Update tracking relationship to inactive
-      const { error } = await supabase
-        .from('founder_investor_relationships')
-        .update({ 
-          status: 'inactive',
-          last_interaction_at: new Date().toISOString(),
-        })
-        .eq('founder_id', snowballFounder.id)
-        .eq('investor_id', investor.id)
-        .eq('relationship_type', 'tracking')
-
-      if (error) {
-        console.error('Error stopping tracking:', error)
-        alert('Failed to stop tracking. Please try again.')
-        return
-      }
-
-      setIsTracking(false)
-      alert('You have stopped tracking Snowball.')
-    } catch (error) {
-      console.error('Error stopping tracking:', error)
+    } catch (error: unknown) {
+      console.error('Error toggling tracking:', error)
       alert('Failed to stop tracking. Please try again.')
     }
   }
@@ -348,9 +293,9 @@ export default function SnowballTrackingPage() {
                     🟢 Active Fundraising
                   </Badge>
                 )}
-                <Link href="/" className="sm:hidden">
+                <Link href="/dashboard/investor" className="sm:hidden">
                   <Button variant="outline" size="sm">
-                    ← Home
+                    ← Dashboard
                   </Button>
                 </Link>
               </div>
@@ -360,13 +305,32 @@ export default function SnowballTrackingPage() {
                   <div className="text-sm text-gray-600 text-center sm:text-left">Loading...</div>
                 ) : isAuthenticated ? (
                   <>
+                    {/* Credit Display */}
+                    <div className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-lg text-xs sm:text-sm">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span className="font-medium text-blue-700">
+                        {creditsInfo?.credits || 0} Credits
+                      </span>
+                      <span className="text-blue-600">
+                        ({creditsInfo?.subscription_tier || 'free'})
+                      </span>
+                    </div>
+                    
                     {isTracking ? (
                       <Button variant="outline" onClick={handleStopTracking} size="sm" className="w-full sm:w-auto">
                         👀 Tracking
                       </Button>
                     ) : (
-                      <Button onClick={handleStartTracking} size="sm" className="w-full sm:w-auto">
-                        Track Snowball
+                      <Button 
+                        onClick={handleStartTracking} 
+                        size="sm" 
+                        className="w-full sm:w-auto"
+                        disabled={!creditsInfo || creditsInfo.credits < 100}
+                      >
+                        {!creditsInfo || creditsInfo.credits < 100 
+                          ? `Need 100 Credits (${creditsInfo?.credits || 0} available)`
+                          : 'Track Snowball'
+                        }
                       </Button>
                     )}
                     <Button variant="outline" onClick={handleSignOut} size="sm" className="w-full sm:w-auto">
@@ -386,9 +350,9 @@ export default function SnowballTrackingPage() {
                   </>
                 )}
                 
-                <Link href="/" className="hidden sm:block">
+                <Link href="/dashboard/investor" className="hidden sm:block">
                   <Button variant="outline" size="sm">
-                    Back to Home
+                    ← Dashboard
                   </Button>
                 </Link>
               </div>

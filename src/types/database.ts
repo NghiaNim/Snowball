@@ -35,11 +35,25 @@ export interface PitchDeck {
 
 export interface User {
   id: string
+  user_id: string
   email: string
-  role: UserRole
+  investor_name: string
+  firm_name: string
+  title: string
+  bio?: string
+  linkedin_url?: string
+  investment_focus?: string[]
+  check_size_min?: number
+  check_size_max?: number
+  preferred_stages?: string[]
+  geographic_focus?: string[]
+  is_active: boolean
   created_at: string
   updated_at: string
-  profile_complete: boolean
+  credits: number
+  subscription_tier: string
+  subscription_expires_at?: string
+  max_credits: number
 }
 
 export interface InvestorProfile {

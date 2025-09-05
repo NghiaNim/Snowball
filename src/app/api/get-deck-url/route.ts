@@ -1,23 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Storage } from '@google-cloud/storage'
 
-// Initialize Google Cloud Storage
-const storage = new Storage({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-  // Use credentials from environment variable if available (production)
-  ...(process.env.GOOGLE_CLOUD_CREDENTIALS && {
-    credentials: JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS),
-  }),
-  // Fallback to key file if credentials not available (development)
-  ...(!process.env.GOOGLE_CLOUD_CREDENTIALS && process.env.GOOGLE_CLOUD_KEY_FILE && {
-    keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE,
-  }),
+// Initialize Google Cloud Storage with proper error handling
+let storage: Storage
+
+try {
+  const storageConfig: Record<string, unknown> = {
+    projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'snowball-471001',
+  }
+
+  // Try to parse credentials from environment variable
+  if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+    try {
+      storageConfig.credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS)
+    } catch {
+      console.warn('Failed to parse GOOGLE_CLOUD_CREDENTIALS, falling back to key file')
+    }
+  }
+
+  // Fallback to key file if credentials parsing failed or not available
+  if (!storageConfig.credentials && process.env.GOOGLE_CLOUD_KEY_FILE) {
+    storageConfig.keyFilename = process.env.GOOGLE_CLOUD_KEY_FILE
+  }
+
   // Final fallback to local secret file (development only)
-  ...((!process.env.GOOGLE_CLOUD_CREDENTIALS && !process.env.GOOGLE_CLOUD_KEY_FILE) && {
-    projectId: 'snowball-471001',
-    keyFilename: './secret/snowball-471001-1bb26b3b5cd0.json',
-  })
-})
+  if (!storageConfig.credentials && !storageConfig.keyFilename) {
+    storageConfig.keyFilename = './secret/snowball-471001-1bb26b3b5cd0.json'
+  }
+
+  storage = new Storage(storageConfig)
+} catch (error) {
+  console.error('Failed to initialize Google Cloud Storage:', error)
+  // Create a dummy storage object that will trigger demo mode
+  storage = {} as Storage
+}
 
 const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'snowball-pitch-decks'
 

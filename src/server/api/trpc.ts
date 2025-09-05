@@ -18,11 +18,11 @@ export const createTRPCContext = async () => {
   let user: User | null = null
   
   if (authUser && !error) {
-    // Get the user profile from our users table
+    // Get the user profile from our investors table
     const { data: userProfile } = await supabase
-      .from('users')
+      .from('investors')
       .select('*')
-      .eq('id', authUser.id)
+      .eq('user_id', authUser.id)
       .single()
     
     user = userProfile

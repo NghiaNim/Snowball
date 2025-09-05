@@ -43,6 +43,23 @@ export default function InvestorDashboard() {
 
   // Fetch real Snowball data
   const { data: snowballData, isLoading: isLoadingSnowball } = api.company.getSnowballData.useQuery()
+  
+  // Fetch investor credit information
+  const { data: creditsInfo, refetch: refetchCredits, error: creditsError } = api.investor.getCreditsInfo.useQuery(undefined, {
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  })
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Credits info:', creditsInfo)
+    console.log('Credits error:', creditsError)
+  }, [creditsInfo, creditsError])
+  
+  // Tracking functionality
+  const [isTrackingSnowball, setIsTrackingSnowball] = useState(false)
+  const [isTrackingLoading, setIsTrackingLoading] = useState(false)
+  const toggleTrackingMutation = api.investor.toggleTracking.useMutation()
 
   useEffect(() => {
     checkAuth()
@@ -90,6 +107,41 @@ export default function InvestorDashboard() {
     }
   }
 
+  const handleToggleTracking = async () => {
+    if (isTrackingLoading) return
+    
+    // Check if investor has enough credits to track
+    if (!isTrackingSnowball && creditsInfo && creditsInfo.credits < 100) {
+      alert('Insufficient credits! You need at least 100 credits to track a startup. Please upgrade your subscription.')
+      return
+    }
+    
+    setIsTrackingLoading(true)
+    try {
+      // Use Snowball's founder user ID for tracking
+      const result = await toggleTrackingMutation.mutateAsync({
+        company_id: 'snowball-demo-user'
+      })
+      
+      setIsTrackingSnowball(result.tracked)
+      
+      // Refresh credits info to show updated balance
+      await refetchCredits()
+      
+      // Show success message
+      if (result.tracked) {
+        alert(`Successfully started tracking Snowball! Credits remaining: ${result.credits}`)
+      } else {
+        alert(`Stopped tracking Snowball. Credits refunded: ${result.credits}`)
+      }
+    } catch (error) {
+      console.error('Tracking error:', error)
+      alert(error instanceof Error ? error.message : 'Failed to update tracking status')
+    } finally {
+      setIsTrackingLoading(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -125,6 +177,34 @@ export default function InvestorDashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Credit Display */}
+                      <div className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-lg">
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <span className="text-sm font-medium text-blue-700">
+            {creditsInfo?.credits || 0} Credits
+          </span>
+          <span className="text-xs text-blue-600">
+            ({creditsInfo?.subscription_tier || 'free'})
+          </span>
+          <button
+            onClick={() => refetchCredits()}
+            className="text-xs text-blue-600 hover:text-blue-800 underline"
+          >
+            Refresh
+          </button>
+          <button
+            onClick={async () => {
+              const supabase = createClient()
+              await supabase.auth.signOut()
+              router.push('/auth/investor/signin')
+            }}
+            className="text-xs text-red-600 hover:text-red-800 underline ml-2"
+          >
+            Sign Out
+          </button>
+        </div>
+        
+              
               <div className="text-sm text-gray-600">
                 {investor.firm_name && `${investor.firm_name} • `}
                 {investor.title || 'Investor'}
@@ -223,9 +303,9 @@ export default function InvestorDashboard() {
                     {snowballData?.fundraisingStatus && (
                       <Badge 
                         variant="outline" 
-                        className={`${fundraisingStatusConfig[snowballData.fundraisingStatus.status]?.color} ${fundraisingStatusConfig[snowballData.fundraisingStatus.status]?.borderColor}`}
+                        className={`${fundraisingStatusConfig[snowballData.fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.color} ${fundraisingStatusConfig[snowballData.fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.borderColor}`}
                       >
-                        {fundraisingStatusConfig[snowballData.fundraisingStatus.status]?.icon} {fundraisingStatusConfig[snowballData.fundraisingStatus.status]?.label}
+                        {fundraisingStatusConfig[snowballData.fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.icon} {fundraisingStatusConfig[snowballData.fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.label}
                       </Badge>
                     )}
                   </div>
@@ -234,11 +314,11 @@ export default function InvestorDashboard() {
                   {snowballData?.updates && snowballData.updates.length > 0 && (
                     (() => {
                       const latestMajorUpdate = snowballData.updates.find(update => update.type === 'major' && update.metrics)
-                      const metrics = latestMajorUpdate?.metrics || {}
+                      const metrics = latestMajorUpdate?.metrics as { mrr?: number; growth?: number; users?: number; retention?: number } || {}
                       
                       return (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                          {metrics.mrr && (
+                          {metrics.mrr && typeof metrics.mrr === 'number' && (
                             <div className="text-center">
                               <div className="text-lg font-bold text-blue-600">
                                 ${(metrics.mrr / 1000).toFixed(0)}K
@@ -246,7 +326,7 @@ export default function InvestorDashboard() {
                               <div className="text-xs text-gray-600">MRR</div>
                             </div>
                           )}
-                          {metrics.growth && (
+                          {metrics.growth && typeof metrics.growth === 'number' && (
                             <div className="text-center">
                               <div className="text-lg font-bold text-green-600">
                                 +{metrics.growth}%
@@ -254,7 +334,7 @@ export default function InvestorDashboard() {
                               <div className="text-xs text-gray-600">Growth</div>
                             </div>
                           )}
-                          {metrics.users && (
+                          {metrics.users && typeof metrics.users === 'number' && (
                             <div className="text-center">
                               <div className="text-lg font-bold text-purple-600">
                                 {(metrics.users / 1000).toFixed(0)}K
@@ -262,7 +342,7 @@ export default function InvestorDashboard() {
                               <div className="text-xs text-gray-600">Users</div>
                             </div>
                           )}
-                          {metrics.retention && (
+                          {metrics.retention && typeof metrics.retention === 'number' && (
                             <div className="text-center">
                               <div className="text-lg font-bold text-yellow-600">
                                 {metrics.retention}%
@@ -281,8 +361,24 @@ export default function InvestorDashboard() {
                         View Details
                       </Button>
                     </Link>
-                    <Button variant="outline">
-                      Request Meeting
+                    <Button 
+                      variant={isTrackingSnowball ? "destructive" : "outline"}
+                      onClick={handleToggleTracking}
+                      disabled={isTrackingLoading || (!isTrackingSnowball && creditsInfo && creditsInfo.credits < 100)}
+                      className={isTrackingLoading ? "opacity-50 cursor-not-allowed" : ""}
+                    >
+                      {isTrackingLoading ? (
+                        <div className="flex items-center space-x-2">
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                          <span>Processing...</span>
+                        </div>
+                      ) : isTrackingSnowball ? (
+                        'Stop Tracking'
+                      ) : creditsInfo && creditsInfo.credits < 100 ? (
+                        `Need 100 Credits (${creditsInfo.credits} available)`
+                      ) : (
+                        'Track Startup'
+                      )}
                     </Button>
                   </div>
                 </div>

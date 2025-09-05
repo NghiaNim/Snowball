@@ -53,7 +53,7 @@ export default function InvestorSignIn() {
         // Redirect to investor dashboard or the page they came from
         const urlParams = new URLSearchParams(window.location.search)
         const returnTo = urlParams.get('returnTo')
-        router.push(returnTo || '/demo/dashboard/investor')
+        router.push(returnTo || '/dashboard/investor')
       }
     } catch (error) {
       console.error('Sign in error:', error)

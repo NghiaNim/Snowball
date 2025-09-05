@@ -45,6 +45,18 @@ export default function InvestorSignUp() {
     try {
       const supabase = createClient()
       
+      // Check if email already exists in investors table
+      const { data: existingInvestor } = await supabase
+        .from('investors')
+        .select('email')
+        .eq('email', formData.email)
+        .single()
+      
+      if (existingInvestor) {
+        setError('An account with this email already exists. Please sign in instead.')
+        return
+      }
+      
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -57,8 +69,9 @@ export default function InvestorSignUp() {
       }
 
       if (authData.user) {
-        // Create investor profile
-        const { error: profileError } = await supabase
+        
+        // Create investor profile with 100 free credits
+        const { data: investorData, error: profileError } = await supabase
           .from('investors')
           .insert({
             user_id: authData.user.id,
@@ -67,17 +80,45 @@ export default function InvestorSignUp() {
             firm_name: formData.firm_name,
             title: formData.title,
             is_active: true,
+            credits: 100,
+            subscription_tier: 'free',
+            max_credits: 100,
           })
+          .select('id')
+          .single()
 
         if (profileError) {
-          console.error('Profile creation error:', profileError)
-          setError('Failed to create investor profile. Please try again.')
+          if (profileError.code === '23505') { // Unique constraint violation
+            setError('An account with this email already exists. Please sign in instead.')
+          } else {
+            setError(`Failed to create investor profile: ${profileError.message}`)
+          }
           return
         }
 
+        // Record the signup bonus credit transaction
+        const { error: transactionError } = await supabase
+          .from('credit_transactions')
+          .insert({
+            investor_id: investorData.id,
+            amount: 100,
+            transaction_type: 'signup_bonus',
+            description: 'Welcome bonus - 100 free credits for new investor account'
+          })
+
+        if (transactionError) {
+          // Don't fail the signup for this, just log it
+          console.error('Credit transaction error:', transactionError)
+        }
+
         // Show success message and redirect
-        alert('Account created successfully! Please check your email to verify your account.')
-        router.push('/auth/investor/signin')
+        if (authData.user && !authData.user.email_confirmed_at) {
+          alert('Account created successfully! You received 100 free credits to start tracking startups. Please check your email to verify your account before signing in.')
+          router.push('/auth/investor/signin')
+        } else {
+          alert('Account created successfully! You received 100 free credits to start tracking startups.')
+          router.push('/dashboard/investor')
+        }
       }
     } catch (error) {
       console.error('Sign up error:', error)
