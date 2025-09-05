@@ -28,6 +28,10 @@ interface ProfileData {
   description: string
   funding_target: string
   website: string
+  mission: string
+  linkedin_url: string
+  twitter_url: string
+  email_contact: string
 }
 
 interface TeamMember {
@@ -35,11 +39,14 @@ interface TeamMember {
   role: string
   bio: string
   profile_picture_url?: string
+  linkedin_url?: string
+  email?: string
 }
 
 interface FundraisingStatusData {
   status: 'not_fundraising' | 'preparing_to_raise' | 'actively_fundraising'
   target_amount?: number
+  raised_amount?: number
   stage?: string
   deadline?: string
   notes?: string
@@ -138,11 +145,27 @@ export default function SnowballDashboard() {
     location: 'San Francisco, CA',
     description: 'Two-sided marketplace connecting early-stage startups with investors through tribe-based networking. Leveraging communities built around accelerators, universities, and companies for high-quality deal flow.',
     funding_target: '$2,000,000',
-    website: 'https://joinsnowball.io'
+    website: 'https://joinsnowball.io',
+    mission: 'We\'re building the future of startup-investor connections through tribe-based networking. Our team combines deep product experience from Stripe with technical expertise from Google to create meaningful relationships in the startup ecosystem.',
+    linkedin_url: 'https://linkedin.com/company/snowball',
+    twitter_url: 'https://twitter.com/joinsnowball',
+    email_contact: 'team@joinsnowball.io'
   })
-  const [teamForm, setTeamForm] = useState([
-    { name: 'Alex Johnson', role: 'Co-founder & CEO', bio: 'Former VP Product at Stripe. Stanford MBA.' },
-    { name: 'Sarah Kim', role: 'Co-founder & CTO', bio: 'Ex-Google Staff Engineer. MIT Computer Science.' }
+  const [teamForm, setTeamForm] = useState<TeamMember[]>([
+    { 
+      name: 'Alex Johnson', 
+      role: 'Co-founder & CEO', 
+      bio: 'Former VP Product at Stripe. Stanford MBA.',
+      linkedin_url: 'https://linkedin.com/in/alexjohnson',
+      email: 'alex@joinsnowball.io'
+    },
+    { 
+      name: 'Sarah Kim', 
+      role: 'Co-founder & CTO', 
+      bio: 'Ex-Google Staff Engineer. MIT Computer Science.',
+      linkedin_url: 'https://linkedin.com/in/sarahkim',
+      email: 'sarah@joinsnowball.io'
+    }
   ])
   const [, setFundraisingStatusForm] = useState<FundraisingStatusData>({
     status: 'actively_fundraising',
@@ -227,7 +250,11 @@ export default function SnowballDashboard() {
         location: currentProfile.location || 'San Francisco, CA',
         description: currentProfile.bio || 'Two-sided marketplace connecting early-stage startups with investors through tribe-based networking. Leveraging communities built around accelerators, universities, and companies for high-quality deal flow.',
         funding_target: currentProfile.funding_target || '$2,000,000',
-        website: currentProfile.website || 'https://joinsnowball.io'
+        website: currentProfile.website || 'https://joinsnowball.io',
+        mission: currentProfile.mission || 'We\'re building the future of startup-investor connections through tribe-based networking. Our team combines deep product experience from Stripe with technical expertise from Google to create meaningful relationships in the startup ecosystem.',
+        linkedin_url: currentProfile.linkedin_url || 'https://linkedin.com/company/snowball',
+        twitter_url: currentProfile.twitter_url || 'https://twitter.com/joinsnowball',
+        email_contact: currentProfile.email_contact || 'team@joinsnowball.io'
       })
     }
   }, [currentProfile])
@@ -238,7 +265,10 @@ export default function SnowballDashboard() {
       setTeamForm(currentTeam.map(member => ({
         name: member.name,
         role: member.role,
-        bio: member.bio || ''
+        bio: member.bio || '',
+        profile_picture_url: member.profile_picture_url,
+        linkedin_url: member.linkedin_url,
+        email: member.email
       })))
     }
   }, [currentTeam])
@@ -395,6 +425,10 @@ export default function SnowballDashboard() {
         bio: updatedProfile.description, // Map description to bio field
         funding_target: updatedProfile.funding_target,
         website: updatedProfile.website,
+        mission: updatedProfile.mission,
+        linkedin_url: updatedProfile.linkedin_url,
+        twitter_url: updatedProfile.twitter_url,
+        email_contact: updatedProfile.email_contact,
       })
 
       // Update the local form data
@@ -462,6 +496,7 @@ export default function SnowballDashboard() {
         user_id: 'snowball-demo-user',
         status: updatedStatus.status,
         ...(updatedStatus.target_amount !== undefined && { target_amount: updatedStatus.target_amount }),
+        ...(updatedStatus.raised_amount !== undefined && { raised_amount: updatedStatus.raised_amount }),
         ...(updatedStatus.stage !== undefined && updatedStatus.stage !== '' && { stage: updatedStatus.stage }),
         ...(updatedStatus.deadline !== undefined && updatedStatus.deadline !== '' && { deadline: updatedStatus.deadline }),
         ...(updatedStatus.notes !== undefined && updatedStatus.notes !== '' && { notes: updatedStatus.notes })
@@ -565,9 +600,6 @@ export default function SnowballDashboard() {
                   <h1 className="text-base md:text-2xl font-bold text-gray-900 truncate">
                     Snowball Founder Dashboard
                   </h1>
-                  <p className="text-xs md:text-sm text-gray-600 hidden sm:block">
-                    Two-sided marketplace for startups & investors
-                  </p>
                 </div>
               </div>
               
@@ -608,7 +640,6 @@ export default function SnowballDashboard() {
                 />
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Snowball Founder Dashboard</h1>
-                  <p className="text-sm text-gray-600">Two-sided marketplace for startups & investors</p>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
@@ -725,6 +756,102 @@ export default function SnowballDashboard() {
                     Copy
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Current Metrics */}
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Current Metrics</CardTitle>
+                    <CardDescription>Latest company performance metrics</CardDescription>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setActiveTab('updates')}
+                  >
+                    Update Metrics
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  // Get the latest major update with metrics
+                  const latestMajorUpdate = updates
+                    .filter(update => update.type === 'major' && update.metrics)
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+                  
+                  const metrics = latestMajorUpdate?.metrics as { mrr?: number; growth?: number; users?: number; retention?: number } | undefined
+                  
+                  if (!metrics) {
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="mb-4">No metrics available yet</p>
+                        <Button 
+                          variant="outline"
+                          onClick={() => setActiveTab('updates')}
+                        >
+                          Create your first major update with metrics
+                        </Button>
+                      </div>
+                    )
+                  }
+                  
+                  return (
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {typeof metrics.mrr === 'number' && (
+                        <div className="text-center p-4 bg-blue-50 rounded-lg">
+                          <div className="text-2xl font-bold text-blue-600">
+                            ${Math.round(metrics.mrr / 1000)}K
+                          </div>
+                          <div className="text-sm text-gray-600">Monthly Recurring Revenue</div>
+                        </div>
+                      )}
+                      {typeof metrics.growth === 'number' && (
+                        <div className="text-center p-4 bg-green-50 rounded-lg">
+                          <div className="text-2xl font-bold text-green-600">
+                            +{metrics.growth}%
+                          </div>
+                          <div className="text-sm text-gray-600">Month-over-Month Growth</div>
+                        </div>
+                      )}
+                      {typeof metrics.users === 'number' && (
+                        <div className="text-center p-4 bg-purple-50 rounded-lg">
+                          <div className="text-2xl font-bold text-purple-600">
+                            {metrics.users.toLocaleString()}
+                          </div>
+                          <div className="text-sm text-gray-600">Active Users</div>
+                        </div>
+                      )}
+                      {typeof metrics.retention === 'number' && (
+                        <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                          <div className="text-2xl font-bold text-yellow-600">
+                            {metrics.retention}%
+                          </div>
+                          <div className="text-sm text-gray-600">User Retention</div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+                {(() => {
+                  const latestMajorUpdate = updates
+                    .filter(update => update.type === 'major' && update.metrics)
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+                  
+                  if (latestMajorUpdate) {
+                    return (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <p className="text-xs text-gray-500">
+                          Last updated: {new Date(latestMajorUpdate.created_at).toLocaleDateString()} via &ldquo;{latestMajorUpdate.title || 'Major Update'}&rdquo;
+                        </p>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
               </CardContent>
             </Card>
 

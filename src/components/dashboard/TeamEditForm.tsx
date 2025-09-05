@@ -13,6 +13,8 @@ interface TeamMember {
   role: string
   bio: string
   profile_picture_url?: string
+  linkedin_url?: string
+  email?: string
 }
 
 interface TeamEditFormProps {
@@ -44,7 +46,14 @@ export function TeamEditForm({
   }
 
   const addMember = () => {
-    const newMember: TeamMember = { name: '', role: '', bio: '', profile_picture_url: '' }
+    const newMember: TeamMember = { 
+      name: '', 
+      role: '', 
+      bio: '', 
+      profile_picture_url: '',
+      linkedin_url: '',
+      email: ''
+    }
     const updatedTeam = [...localTeamData, newMember]
     setLocalTeamData(updatedTeam)
     onTeamChange(updatedTeam)
@@ -143,8 +152,36 @@ export function TeamEditForm({
                   <h4 className="text-lg font-semibold text-gray-900">{member.name}</h4>
                   <p className="text-sm text-gray-600 mb-2">{member.role}</p>
                   {member.bio && (
-                    <p className="text-sm text-gray-700 leading-relaxed">{member.bio}</p>
+                    <p className="text-sm text-gray-700 leading-relaxed mb-3">{member.bio}</p>
                   )}
+                  
+                  {/* Contact Links */}
+                  <div className="flex items-center space-x-4">
+                    {member.linkedin_url && (
+                      <a
+                        href={member.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
+                      >
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.338 16.338H13.67V12.16c0-.995-.017-2.277-1.387-2.277-1.39 0-1.601 1.086-1.601 2.207v4.248H8.014v-8.59h2.559v1.174h.037c.356-.675 1.227-1.387 2.526-1.387 2.703 0 3.203 1.778 3.203 4.092v4.711zM5.005 6.575a1.548 1.548 0 11-.003-3.096 1.548 1.548 0 01.003 3.096zm-1.337 9.763H6.34v-8.59H3.667v8.59zM17.668 1H2.328C1.595 1 1 1.581 1 2.298v15.403C1 18.418 1.595 19 2.328 19h15.34c.734 0 1.332-.582 1.332-1.299V2.298C19 1.581 18.402 1 17.668 1z" clipRule="evenodd" />
+                        </svg>
+                        LinkedIn
+                      </a>
+                    )}
+                    {member.email && (
+                      <a
+                        href={`mailto:${member.email}`}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
+                      >
+                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        Email
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -296,6 +333,35 @@ export function TeamEditForm({
                   className="mt-1"
                   placeholder="Brief background and experience..."
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor={`linkedin-${index}`} className="text-sm font-medium text-gray-700">
+                    LinkedIn URL
+                  </Label>
+                  <Input
+                    id={`linkedin-${index}`}
+                    type="url"
+                    value={member.linkedin_url || ''}
+                    onChange={(e) => handleMemberChange(index, 'linkedin_url', e.target.value)}
+                    className="mt-1"
+                    placeholder="https://linkedin.com/in/username"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`email-${index}`} className="text-sm font-medium text-gray-700">
+                    Email Address
+                  </Label>
+                  <Input
+                    id={`email-${index}`}
+                    type="email"
+                    value={member.email || ''}
+                    onChange={(e) => handleMemberChange(index, 'email', e.target.value)}
+                    className="mt-1"
+                    placeholder="john@company.com"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

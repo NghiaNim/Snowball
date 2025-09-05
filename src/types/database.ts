@@ -142,6 +142,9 @@ export interface Founder {
   location?: string
   funding_target?: string
   logo_emoji: string
+  mission?: string
+  twitter_url?: string
+  email_contact?: string
   is_active: boolean
   created_at: string
   updated_at: string

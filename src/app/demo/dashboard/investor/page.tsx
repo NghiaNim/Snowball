@@ -44,11 +44,34 @@ export default function InvestorDashboard() {
   // Fetch real Snowball data
   const { data: snowballData, isLoading: isLoadingSnowball } = api.company.getSnowballData.useQuery()
   
-  // Fetch investor credit information
+  // Check if in demo mode
+  const [isDemoMode, setIsDemoMode] = useState(false)
+  
+  useEffect(() => {
+    const tempSession = localStorage.getItem('temp-session')
+    setIsDemoMode(tempSession === 'demo-investor')
+  }, [])
+
+  // Fetch investor credit information (disabled in demo mode)
   const { data: creditsInfo, refetch: refetchCredits, error: creditsError } = api.investor.getCreditsInfo.useQuery(undefined, {
+    enabled: !isDemoMode, // Disable in demo mode
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   })
+  
+  // Demo credit state
+  const [demoCredits, setDemoCredits] = useState(300)
+  
+  // Demo credit data
+  const demoCreditsInfo = {
+    credits: demoCredits,
+    subscription_tier: 'premium',
+    max_credits: 300,
+    subscription_expires_at: null
+  }
+  
+  // Use demo data when in demo mode, otherwise use real data
+  const finalCreditsInfo = isDemoMode ? demoCreditsInfo : creditsInfo
 
   // Debug logging
   useEffect(() => {
@@ -67,6 +90,26 @@ export default function InvestorDashboard() {
 
   const checkAuth = async () => {
     try {
+      // Check for demo session first
+      const tempSession = localStorage.getItem('temp-session')
+      const tempRole = localStorage.getItem('temp-role')
+      
+      if (tempSession === 'demo-investor' && tempRole === 'investor') {
+        // Demo mode - use fake investor data
+        setInvestor({
+          id: 'demo-investor-id',
+          email: 'demo@investor.com',
+          investor_name: 'Demo Investor',
+          firm_name: 'Demo Ventures',
+          title: 'Partner'
+        })
+        setIsAuthenticated(true)
+        setIsTrackingSnowball(false) // Default demo state
+        setIsLoading(false)
+        return
+      }
+
+      // Real authentication flow
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       
@@ -99,6 +142,18 @@ export default function InvestorDashboard() {
 
   const handleSignOut = async () => {
     try {
+      // Check if in demo mode
+      const tempSession = localStorage.getItem('temp-session')
+      
+      if (tempSession === 'demo-investor') {
+        // Demo mode - just clear demo session and go back to demo home
+        localStorage.removeItem('temp-session')
+        localStorage.removeItem('temp-role')
+        router.push('/demo')
+        return
+      }
+
+      // Real authentication flow
       const supabase = createClient()
       await supabase.auth.signOut()
       router.push('/')
@@ -111,12 +166,35 @@ export default function InvestorDashboard() {
     if (isTrackingLoading) return
     
     // Check if investor has enough credits to track
-    if (!isTrackingSnowball && creditsInfo && creditsInfo.credits < 100) {
+    if (!isTrackingSnowball && finalCreditsInfo && finalCreditsInfo.credits < 100) {
       alert('Insufficient credits! You need at least 100 credits to track a startup. Please upgrade your subscription.')
       return
     }
     
     setIsTrackingLoading(true)
+    
+    // Demo mode - just toggle without real API calls
+    if (isDemoMode) {
+      setTimeout(() => {
+        const newTrackingState = !isTrackingSnowball
+        setIsTrackingSnowball(newTrackingState)
+        
+        // Update demo credits
+        if (newTrackingState) {
+          // Started tracking - deduct 100 credits
+          setDemoCredits(200)
+          alert('Demo: Successfully started tracking Snowball! You now have 200 credits remaining.')
+        } else {
+          // Stopped tracking - refund 100 credits
+          setDemoCredits(300)
+          alert('Demo: You have stopped tracking Snowball. Your credits have been refunded to 300.')
+        }
+        
+        setIsTrackingLoading(false)
+      }, 1000)
+      return
+    }
+    
     try {
       // Use Snowball's founder user ID for tracking
       const result = await toggleTrackingMutation.mutateAsync({
@@ -181,10 +259,10 @@ export default function InvestorDashboard() {
                       <div className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-lg">
           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
           <span className="text-sm font-medium text-blue-700">
-            {creditsInfo?.credits || 0} Credits
+            {finalCreditsInfo?.credits || 0} Credits
           </span>
           <span className="text-xs text-blue-600">
-            ({creditsInfo?.subscription_tier || 'free'})
+            ({finalCreditsInfo?.subscription_tier || 'free'})
           </span>
           <button
             onClick={() => refetchCredits()}
@@ -364,8 +442,10 @@ export default function InvestorDashboard() {
                     <Button 
                       variant={isTrackingSnowball ? "destructive" : "outline"}
                       onClick={handleToggleTracking}
-                      disabled={isTrackingLoading || (!isTrackingSnowball && creditsInfo && creditsInfo.credits < 100)}
-                      className={isTrackingLoading ? "opacity-50 cursor-not-allowed" : ""}
+                      disabled={isTrackingLoading || (!isTrackingSnowball && finalCreditsInfo && finalCreditsInfo.credits < 100)}
+                      className={`${isTrackingLoading ? "opacity-50 cursor-not-allowed" : ""} ${
+                        isTrackingSnowball ? "bg-red-600 hover:bg-red-700 text-white" : ""
+                      }`}
                     >
                       {isTrackingLoading ? (
                         <div className="flex items-center space-x-2">
@@ -374,8 +454,8 @@ export default function InvestorDashboard() {
                         </div>
                       ) : isTrackingSnowball ? (
                         'Stop Tracking'
-                      ) : creditsInfo && creditsInfo.credits < 100 ? (
-                        `Need 100 Credits (${creditsInfo.credits} available)`
+                      ) : finalCreditsInfo && finalCreditsInfo.credits < 100 ? (
+                        `Need 100 Credits (${finalCreditsInfo.credits} available)`
                       ) : (
                         'Track Startup'
                       )}

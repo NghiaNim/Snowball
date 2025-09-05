@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,6 +14,7 @@ type FundraisingStatus = 'not_fundraising' | 'preparing_to_raise' | 'actively_fu
 interface FundraisingStatusData {
   status: FundraisingStatus
   target_amount?: number
+  raised_amount?: number
   stage?: string
   deadline?: string
   notes?: string
@@ -62,11 +63,19 @@ export function FundraisingStatusForm({
     statusData || {
       status: 'not_fundraising',
       target_amount: undefined,
+      raised_amount: undefined,
       stage: '',
       deadline: '',
       notes: ''
     }
   )
+
+  // Update local state when statusData prop changes
+  useEffect(() => {
+    if (statusData) {
+      setLocalStatusData(statusData)
+    }
+  }, [statusData])
 
   const handleFieldChange = (field: keyof FundraisingStatusData, value: string | number | undefined) => {
     let updatedData = { ...localStatusData, [field]: value }
@@ -76,6 +85,7 @@ export function FundraisingStatusForm({
       updatedData = {
         ...updatedData,
         target_amount: undefined,
+        raised_amount: undefined,
         stage: '',
         deadline: '',
         notes: ''
@@ -93,6 +103,7 @@ export function FundraisingStatusForm({
     const cleanedData = {
       ...localStatusData,
       target_amount: localStatusData.target_amount || undefined,
+      raised_amount: localStatusData.raised_amount || undefined,
       stage: localStatusData.stage || undefined,
       deadline: localStatusData.deadline || undefined,
       notes: localStatusData.notes || undefined
@@ -129,6 +140,12 @@ export function FundraisingStatusForm({
                 <div>
                   <span className="font-medium text-gray-700">Target Amount:</span>{' '}
                   <span className="text-gray-600">${statusData.target_amount.toLocaleString()}</span>
+                </div>
+              )}
+              {statusData.raised_amount !== undefined && statusData.raised_amount >= 0 && (
+                <div>
+                  <span className="font-medium text-gray-700">Raised So Far:</span>{' '}
+                  <span className="text-gray-600">${statusData.raised_amount.toLocaleString()}</span>
                 </div>
               )}
               {statusData.stage && (
@@ -190,7 +207,7 @@ export function FundraisingStatusForm({
 
           {/* Additional Fields */}
           {(localStatusData.status === 'preparing_to_raise' || localStatusData.status === 'actively_fundraising') && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <Label htmlFor="target-amount" className="text-sm font-medium text-gray-700">
                   Target Amount ($)
@@ -202,6 +219,19 @@ export function FundraisingStatusForm({
                   onChange={(e) => handleFieldChange('target_amount', e.target.value ? parseFloat(e.target.value) : undefined)}
                   className="mt-1"
                   placeholder="2000000"
+                />
+              </div>
+              <div>
+                <Label htmlFor="raised-amount" className="text-sm font-medium text-gray-700">
+                  Raised So Far ($)
+                </Label>
+                <Input
+                  id="raised-amount"
+                  type="number"
+                  value={localStatusData.raised_amount || ''}
+                  onChange={(e) => handleFieldChange('raised_amount', e.target.value ? parseFloat(e.target.value) : undefined)}
+                  className="mt-1"
+                  placeholder="0"
                 />
               </div>
               <div>

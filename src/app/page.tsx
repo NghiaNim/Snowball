@@ -68,7 +68,7 @@ export default function Home() {
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl lg:text-7xl">
               AI-Native Platform for
               <span className="block text-blue-600 mt-2">Early Stage Venture</span>
-            </h1>
+          </h1>
             <p className="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               Snowball enables early stage venture investors and startups to source, connect, track, and engage with each other through the entrepreneurial ecosystems they trust most.
             </p>
@@ -77,14 +77,14 @@ export default function Home() {
                 <Button size="lg" className="w-full sm:w-auto h-12 px-8 text-white bg-blue-600 hover:bg-blue-700 text-lg">
                   I&apos;m a Founder
                 </Button>
-              </Link>
+            </Link>
               <Link href="/auth/investor/signin">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto h-12 px-8 text-blue-600 border-blue-600 hover:bg-blue-50 text-lg">
-                  I&apos;m an Investor
-                </Button>
-              </Link>
-            </div>
+                I&apos;m an Investor
+              </Button>
+            </Link>
           </div>
+        </div>
         </div>
 
         {/* How It Works Section */}
@@ -96,7 +96,7 @@ export default function Home() {
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
               Rather than juggling different portals, newsletters, and spreadsheets, Snowball lets you track progress and engage with your most promising opportunities in one place.
             </p>
-          </div>
+        </div>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-16">
             {/* For Founders */}
@@ -121,7 +121,7 @@ export default function Home() {
                       </svg>
                     </div>
                     <p className="ml-3 text-gray-700">Create compelling profiles with pitch decks and real-time traction updates</p>
-                  </li>
+                </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mt-0.5">
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -129,7 +129,7 @@ export default function Home() {
                       </svg>
                     </div>
                     <p className="ml-3 text-gray-700">Get tracked by investors from your accelerator, university, or company alumni networks</p>
-                  </li>
+                </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mt-0.5">
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -137,8 +137,8 @@ export default function Home() {
                       </svg>
                     </div>
                     <p className="ml-3 text-gray-700">Receive meeting requests and build relationships with interested investors</p>
-                  </li>
-                </ul>
+                </li>
+              </ul>
               </CardContent>
             </Card>
 
@@ -164,7 +164,7 @@ export default function Home() {
                       </svg>
                     </div>
                     <p className="ml-3 text-gray-700">Access curated startups from your alumni networks and trusted connections</p>
-                  </li>
+                </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0 w-6 h-6 bg-green-600 rounded-full flex items-center justify-center mt-0.5">
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -172,7 +172,7 @@ export default function Home() {
                       </svg>
                     </div>
                     <p className="ml-3 text-gray-700">Track interesting companies with a credit-based system for efficient deal management</p>
-                  </li>
+          </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0 w-6 h-6 bg-green-600 rounded-full flex items-center justify-center mt-0.5">
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -184,8 +184,8 @@ export default function Home() {
                 </ul>
               </CardContent>
             </Card>
-          </div>
-        </div>
+                    </div>
+                  </div>
 
         {/* Pricing Section */}
         <div className="py-16 md:py-20 bg-gray-50 rounded-3xl" id="pricing">
@@ -353,8 +353,8 @@ export default function Home() {
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                     <span className="text-gray-700">Custom integrations</span>
-                  </li>
-                </ul>
+          </li>
+              </ul>
                 <a href="mailto:pete@joinsnowball.io">
                   <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">
                     Contact Sales
@@ -362,7 +362,7 @@ export default function Home() {
                 </a>
               </CardContent>
             </Card>
-          </div>
+            </div>
 
           <div className="text-center mt-12">
             <p className="text-gray-600 text-sm">

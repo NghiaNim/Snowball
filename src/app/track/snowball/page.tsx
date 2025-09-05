@@ -274,7 +274,6 @@ export default function SnowballTrackingPage() {
               />
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Snowball</h1>
-                <p className="text-xs sm:text-sm text-gray-600">Two-sided marketplace for startups & investors</p>
               </div>
             </div>
             
@@ -431,32 +430,95 @@ export default function SnowballTrackingPage() {
                 <CardDescription className="text-sm">Current performance indicators</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-                  <div className="text-center p-3 sm:p-4 bg-blue-50 rounded-lg">
-                    <div className="text-lg sm:text-2xl font-bold text-blue-600">
-                      ${Math.round(snowballData.metrics.current.mrr / 1000)}K
+                {(() => {
+                  // Check if user is authenticated and tracking this company
+                  if (!isAuthenticated || !isTracking) {
+                    return (
+                      <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <div className="max-w-md mx-auto">
+                          <div className="text-4xl mb-4">🔒</div>
+                          <h3 className="text-lg font-semibold mb-2 text-gray-700">Metrics are Private</h3>
+                          <p className="text-sm mb-4">
+                            Company performance metrics are only visible to investors who are tracking this startup.
+                          </p>
+                          {!isAuthenticated ? (
+                            <p className="text-xs text-gray-600">
+                              <a href="/auth/investor/signin" className="text-blue-600 hover:text-blue-800 underline">
+                                Sign in as an investor
+                              </a> to track companies and view their metrics.
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-600">
+                              Click &ldquo;Track Startup&rdquo; above to start following Snowball and unlock access to their metrics.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  // Get the latest major update with metrics
+                  const latestMajorUpdate = updates
+                    .filter(update => update.type === 'major' && update.metrics)
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+                  
+                  const metrics = latestMajorUpdate?.metrics as { mrr?: number; growth?: number; users?: number; retention?: number } | undefined
+                  
+                  if (!metrics) {
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-lg font-semibold mb-2">No Metrics Available</p>
+                        <p className="text-sm">This company hasn&apos;t shared any performance metrics yet.</p>
+                      </div>
+                    )
+                  }
+                  
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+                        {typeof metrics.mrr === 'number' && (
+                          <div className="text-center p-3 sm:p-4 bg-blue-50 rounded-lg">
+                            <div className="text-lg sm:text-2xl font-bold text-blue-600">
+                              ${Math.round(metrics.mrr / 1000)}K
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-600">Monthly Recurring Revenue</div>
+                          </div>
+                        )}
+                        {typeof metrics.growth === 'number' && (
+                          <div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg">
+                            <div className="text-lg sm:text-2xl font-bold text-green-600">
+                              +{metrics.growth}%
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-600">Month-over-Month Growth</div>
+                          </div>
+                        )}
+                        {typeof metrics.users === 'number' && (
+                          <div className="text-center p-3 sm:p-4 bg-purple-50 rounded-lg">
+                            <div className="text-lg sm:text-2xl font-bold text-purple-600">
+                              {metrics.users.toLocaleString()}
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-600">Active Users</div>
+                          </div>
+                        )}
+                        {typeof metrics.retention === 'number' && (
+                          <div className="text-center p-3 sm:p-4 bg-yellow-50 rounded-lg">
+                            <div className="text-lg sm:text-2xl font-bold text-yellow-600">
+                              {metrics.retention}%
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-600">User Retention</div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Show when metrics were last updated */}
+                      <div className="pt-4 border-t border-gray-200 text-center">
+                        <p className="text-xs text-gray-500">
+                          Last updated: {new Date(latestMajorUpdate.created_at).toLocaleDateString()} • From update: &ldquo;{latestMajorUpdate.title || 'Major Update'}&rdquo;
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-600">Monthly Recurring Revenue</div>
-                  </div>
-                  <div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg">
-                    <div className="text-lg sm:text-2xl font-bold text-green-600">
-                      +{snowballData.metrics.current.growth}%
-                    </div>
-                    <div className="text-xs sm:text-sm text-gray-600">Month-over-Month Growth</div>
-                  </div>
-                  <div className="text-center p-3 sm:p-4 bg-purple-50 rounded-lg">
-                    <div className="text-lg sm:text-2xl font-bold text-purple-600">
-                      {snowballData.metrics.current.users.toLocaleString()}
-                    </div>
-                    <div className="text-xs sm:text-sm text-gray-600">Active Users</div>
-                  </div>
-                  <div className="text-center p-3 sm:p-4 bg-yellow-50 rounded-lg">
-                    <div className="text-lg sm:text-2xl font-bold text-yellow-600">
-                      {snowballData.metrics.current.retention}%
-                    </div>
-                    <div className="text-xs sm:text-sm text-gray-600">User Retention</div>
-                  </div>
-                </div>
+                  )
+                })()}
               </CardContent>
             </Card>
 
@@ -467,26 +529,98 @@ export default function SnowballTrackingPage() {
                 <CardDescription className="text-sm">Current funding round progress</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-3 sm:gap-6">
-                  <div className="text-center">
-                    <div className="text-lg sm:text-2xl font-bold text-blue-600">
-                      ${snowballData.fundraising.target.toLocaleString()}
+                {(() => {
+                  // Check if user is authenticated and tracking this company
+                  if (!isAuthenticated || !isTracking) {
+                    return (
+                      <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <div className="max-w-md mx-auto">
+                          <div className="text-4xl mb-4">🔒</div>
+                          <h3 className="text-lg font-semibold mb-2 text-gray-700">Fundraising Status is Private</h3>
+                          <p className="text-sm mb-4">
+                            Company fundraising information is only visible to investors who are tracking this startup.
+                          </p>
+                          {!isAuthenticated ? (
+                            <p className="text-xs text-gray-600">
+                              <a href="/auth/investor/signin" className="text-blue-600 hover:text-blue-800 underline">
+                                Sign in as an investor
+                              </a> to track companies and view their fundraising status.
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-600">
+                              Track this company to view their fundraising information.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+                  
+                  const fundraisingStatus = snowballRealData?.fundraisingStatus
+                  
+                  if (!fundraisingStatus || fundraisingStatus.status === 'not_fundraising') {
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-lg font-semibold mb-2">Not Currently Fundraising</p>
+                        <p className="text-sm">This company is not actively raising funds at the moment.</p>
+                      </div>
+                    )
+                  }
+                  
+                  const statusConfig = {
+                    preparing_to_raise: { label: 'Preparing to Raise', color: 'text-yellow-600' },
+                    actively_fundraising: { label: 'Active Fundraising', color: 'text-green-600' }
+                  }
+                  
+                  const config = statusConfig[fundraisingStatus.status as keyof typeof statusConfig]
+                  
+                  return (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${config.color} bg-gray-100`}>
+                          {config.label}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-3 sm:gap-6">
+                        {fundraisingStatus.target_amount && (
+                          <div className="text-center">
+                            <div className="text-lg sm:text-2xl font-bold text-blue-600">
+                              ${fundraisingStatus.target_amount.toLocaleString()}
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-600">Target</div>
+                          </div>
+                        )}
+                        
+                        {fundraisingStatus.raised_amount !== undefined && (
+                          <div className="text-center">
+                            <div className="text-lg sm:text-2xl font-bold text-green-600">
+                              ${fundraisingStatus.raised_amount.toLocaleString()}
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-600">Raised</div>
+                          </div>
+                        )}
+                        
+                        {fundraisingStatus.stage && (
+                          <div className="text-center">
+                            <div className="text-lg sm:text-2xl font-bold text-purple-600">
+                              {fundraisingStatus.stage}
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-600">Stage</div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {fundraisingStatus.deadline && (
+                        <div className="text-center pt-4 border-t border-gray-200">
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Target Close:</span> {new Date(fundraisingStatus.deadline).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-600">Target</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg sm:text-2xl font-bold text-green-600">
-                      ${snowballData.fundraising.raised.toLocaleString()}
-                    </div>
-                    <div className="text-xs sm:text-sm text-gray-600">Raised</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg sm:text-2xl font-bold text-purple-600">
-                      {snowballData.fundraising.stage}
-                    </div>
-                    <div className="text-xs sm:text-sm text-gray-600">Stage</div>
-                  </div>
-                </div>
+                  )
+                })()}
               </CardContent>
             </Card>
 
@@ -744,17 +878,26 @@ export default function SnowballTrackingPage() {
                           </p>
                         )}
 
-                        {/* Social Links Placeholder */}
+                        {/* Social Links */}
                         <div className="flex space-x-3 pt-2">
-                          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-blue-100 transition-colors duration-200 cursor-pointer">
-                            <span className="text-gray-600 text-sm">in</span>
-                          </div>
-                          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-blue-100 transition-colors duration-200 cursor-pointer">
-                            <span className="text-gray-600 text-sm">@</span>
-                          </div>
-                          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-blue-100 transition-colors duration-200 cursor-pointer">
-                            <span className="text-gray-600 text-sm">📧</span>
-                          </div>
+                          {member.linkedin_url && (
+                            <a
+                              href={member.linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center hover:bg-blue-200 transition-colors duration-200 cursor-pointer group"
+                            >
+                              <span className="text-blue-600 text-sm font-semibold group-hover:text-blue-700">in</span>
+                            </a>
+                          )}
+                          {member.email && (
+                            <a
+                              href={`mailto:${member.email}`}
+                              className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors duration-200 cursor-pointer group"
+                            >
+                              <span className="text-gray-600 text-sm group-hover:text-gray-700">📧</span>
+                            </a>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -778,9 +921,7 @@ export default function SnowballTrackingPage() {
               <div className="text-center max-w-2xl mx-auto">
                 <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Our Mission</h3>
                 <p className="text-gray-700 text-sm sm:text-base leading-relaxed mb-6">
-                  We&apos;re building the future of startup-investor connections through tribe-based networking. 
-                  Our team combines deep product experience from Stripe with technical expertise from Google 
-                  to create meaningful relationships in the startup ecosystem.
+                  {profile?.mission || 'We\'re building the future of startup-investor connections through tribe-based networking. Our team combines deep product experience from Stripe with technical expertise from Google to create meaningful relationships in the startup ecosystem.'}
                 </p>
                 <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
                   <span className="bg-white px-3 py-1 rounded-full">🚀 Product-First</span>

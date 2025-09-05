@@ -39,6 +39,10 @@ const updateCompanyProfileSchema = z.object({
   bio: z.string().optional(), // Using bio field for company description
   funding_target: z.string(),
   website: z.string(),
+  mission: z.string().optional(),
+  linkedin_url: z.string().optional(),
+  twitter_url: z.string().optional(),
+  email_contact: z.string().optional(),
 })
 
 const updateTeamSchema = z.object({
@@ -47,7 +51,9 @@ const updateTeamSchema = z.object({
     name: z.string(),
     role: z.string(),
     bio: z.string(),
-    profile_picture_url: z.string().optional(),
+    profile_picture_url: z.string().nullable().optional(),
+    linkedin_url: z.string().nullable().optional(),
+    email: z.string().nullable().optional(),
   })),
 })
 
@@ -55,6 +61,7 @@ const updateFundraisingStatusSchema = z.object({
   user_id: z.string(),
   status: z.enum(['not_fundraising', 'preparing_to_raise', 'actively_fundraising']),
   target_amount: z.number().optional(),
+  raised_amount: z.number().optional(),
   stage: z.string().optional(),
   deadline: z.string().nullable().optional(), // ISO date string, can be null
   notes: z.string().optional(),
@@ -221,6 +228,10 @@ export const companyRouter = createTRPCRouter({
           bio: input.bio,
           funding_target: input.funding_target,
           website: input.website,
+          mission: input.mission,
+          linkedin_url: input.linkedin_url,
+          twitter_url: input.twitter_url,
+          email_contact: input.email_contact,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', input.user_id)
@@ -254,7 +265,9 @@ export const companyRouter = createTRPCRouter({
           name: member.name,
           role: member.role,
           bio: member.bio,
-          profile_picture_url: member.profile_picture_url,
+          profile_picture_url: member.profile_picture_url || null,
+          linkedin_url: member.linkedin_url || null,
+          email: member.email || null,
         }))
 
         const { data, error } = await supabase
@@ -347,6 +360,7 @@ export const companyRouter = createTRPCRouter({
       }
 
       if (input.target_amount !== undefined) updateData.target_amount = input.target_amount
+      if (input.raised_amount !== undefined) updateData.raised_amount = input.raised_amount
       if (input.stage !== undefined) updateData.stage = input.stage
       if (input.deadline !== undefined) updateData.deadline = input.deadline
       if (input.notes !== undefined) updateData.notes = input.notes
