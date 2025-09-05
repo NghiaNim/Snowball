@@ -175,7 +175,7 @@ export default function SnowballDashboard() {
   const updateFundraisingStatusMutation = api.company.updateFundraisingStatus.useMutation()
   const updateCompanyUpdateMutation = api.company.updateCompanyUpdate.useMutation()
   const deleteCompanyUpdateMutation = api.company.deleteCompanyUpdate.useMutation()
-  const { data: fundraisingStatus } = api.company.getFundraisingStatus.useQuery(
+  const { data: fundraisingStatus, refetch: refetchFundraisingStatus } = api.company.getFundraisingStatus.useQuery(
     { user_id: 'snowball-demo-user' }
   )
   
@@ -469,6 +469,9 @@ export default function SnowballDashboard() {
 
       // Update fundraising status in database
       await updateFundraisingStatusMutation.mutateAsync(cleanedStatus)
+
+      // Refetch the fundraising status to update the UI
+      await refetchFundraisingStatus()
 
       setIsEditingFundraisingStatus(false)
       alert('Fundraising status updated successfully!')
