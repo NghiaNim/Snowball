@@ -8,12 +8,41 @@ import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
+import { api } from '@/lib/trpc/client'
+
+// Fundraising status configuration
+const fundraisingStatusConfig = {
+  not_fundraising: {
+    label: 'Not Fundraising',
+    icon: '⚪',
+    color: 'text-gray-600',
+    bgColor: 'bg-gray-50',
+    borderColor: 'border-gray-200'
+  },
+  preparing_to_raise: {
+    label: 'Preparing to Raise',
+    icon: '🟡',
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-200'
+  },
+  actively_fundraising: {
+    label: 'Active Fundraising',
+    icon: '🟢',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200'
+  }
+}
 
 export default function InvestorDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [investor, setInvestor] = useState<{ id: string; email?: string; investor_name?: string; firm_name?: string; title?: string } | null>(null)
   const router = useRouter()
+
+  // Fetch real Snowball data
+  const { data: snowballData, isLoading: isLoadingSnowball } = api.company.getSnowballData.useQuery()
 
   useEffect(() => {
     checkAuth()
@@ -146,56 +175,118 @@ export default function InvestorDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="border border-gray-200 rounded-lg p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-4">
-                    <Image
-                      src="/snowball.png"
-                      alt="Snowball Logo"
-                      width={48}
-                      height={48}
-                      className="rounded-lg"
-                    />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Snowball</h3>
-                      <p className="text-sm text-gray-600">Two-sided marketplace for startups & investors</p>
+              {isLoadingSnowball ? (
+                <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="animate-pulse">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+                        <div>
+                          <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-32"></div>
+                        </div>
+                      </div>
+                      <div className="h-6 bg-gray-200 rounded w-24"></div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="text-center">
+                          <div className="h-6 bg-gray-200 rounded w-16 mx-auto mb-1"></div>
+                          <div className="h-3 bg-gray-200 rounded w-12 mx-auto"></div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex space-x-3">
+                      <div className="h-10 bg-gray-200 rounded flex-1"></div>
+                      <div className="h-10 bg-gray-200 rounded flex-1"></div>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-green-600 border-green-600">
-                    🟢 Active Fundraising
-                  </Badge>
                 </div>
+              ) : (
+                <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      <Image
+                        src="/snowball.png"
+                        alt="Snowball Logo"
+                        width={48}
+                        height={48}
+                        className="rounded-lg"
+                      />
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Snowball</h3>
+                        <p className="text-sm text-gray-600">
+                          {snowballData?.profile?.description || 'Two-sided marketplace for startups & investors'}
+                        </p>
+                      </div>
+                    </div>
+                    {snowballData?.fundraisingStatus && (
+                      <Badge 
+                        variant="outline" 
+                        className={`${fundraisingStatusConfig[snowballData.fundraisingStatus.status]?.color} ${fundraisingStatusConfig[snowballData.fundraisingStatus.status]?.borderColor}`}
+                      >
+                        {fundraisingStatusConfig[snowballData.fundraisingStatus.status]?.icon} {fundraisingStatusConfig[snowballData.fundraisingStatus.status]?.label}
+                      </Badge>
+                    )}
+                  </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">$140K</div>
-                    <div className="text-xs text-gray-600">MRR</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-green-600">+12%</div>
-                    <div className="text-xs text-gray-600">Growth</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-purple-600">15K</div>
-                    <div className="text-xs text-gray-600">Users</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-yellow-600">94%</div>
-                    <div className="text-xs text-gray-600">Retention</div>
-                  </div>
-                </div>
+                  {/* Get latest metrics from the most recent major update */}
+                  {snowballData?.updates && snowballData.updates.length > 0 && (
+                    (() => {
+                      const latestMajorUpdate = snowballData.updates.find(update => update.type === 'major' && update.metrics)
+                      const metrics = latestMajorUpdate?.metrics || {}
+                      
+                      return (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                          {metrics.mrr && (
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-blue-600">
+                                ${(metrics.mrr / 1000).toFixed(0)}K
+                              </div>
+                              <div className="text-xs text-gray-600">MRR</div>
+                            </div>
+                          )}
+                          {metrics.growth && (
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-green-600">
+                                +{metrics.growth}%
+                              </div>
+                              <div className="text-xs text-gray-600">Growth</div>
+                            </div>
+                          )}
+                          {metrics.users && (
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-purple-600">
+                                {(metrics.users / 1000).toFixed(0)}K
+                              </div>
+                              <div className="text-xs text-gray-600">Users</div>
+                            </div>
+                          )}
+                          {metrics.retention && (
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-yellow-600">
+                                {metrics.retention}%
+                              </div>
+                              <div className="text-xs text-gray-600">Retention</div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()
+                  )}
 
-                <div className="flex space-x-3">
-                  <Link href="/track/snowball">
-                    <Button className="bg-blue-600 hover:bg-blue-700">
-                      View Details
+                  <div className="flex space-x-3">
+                    <Link href="/track/snowball">
+                      <Button className="bg-blue-600 hover:bg-blue-700">
+                        View Details
+                      </Button>
+                    </Link>
+                    <Button variant="outline">
+                      Request Meeting
                     </Button>
-                  </Link>
-                  <Button variant="outline">
-                    Request Meeting
-                  </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
