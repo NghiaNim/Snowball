@@ -41,8 +41,8 @@ export default function InvestorDashboard() {
   const [investor, setInvestor] = useState<{ id: string; user_id: string; email?: string; investor_name?: string; firm_name?: string; title?: string; credits?: number; subscription_tier?: string; max_credits?: number } | null>(null)
   const router = useRouter()
 
-  // Fetch real Snowball data
-  const { data: snowballData, isLoading: isLoadingSnowball } = api.company.getSnowballData.useQuery()
+  // Fetch real Snowball data - only major updates for investors
+  const { data: snowballData, isLoading: isLoadingSnowball } = api.company.getSnowballMajorUpdates.useQuery()
   
   // Debug logging
   useEffect(() => {

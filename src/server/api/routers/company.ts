@@ -516,4 +516,101 @@ export const companyRouter = createTRPCRouter({
         fundraisingStatus: fundraisingStatus || null,
       }
     }),
+
+  // For investors - get only major updates for tracked companies
+  getInvestorMajorUpdates: publicProcedure
+    .input(z.object({
+      company_id: z.string(),
+      limit: z.number().min(1).max(100).default(20),
+      offset: z.number().min(0).default(0),
+    }))
+    .query(async ({ input }) => {
+      const supabase = await createClient()
+
+      const { data, error } = await supabase
+        .from('company_updates')
+        .select('*')
+        .eq('company_id', input.company_id)
+        .eq('type', 'major')
+        .order('created_at', { ascending: false })
+        .range(input.offset, input.offset + input.limit - 1)
+
+      if (error) {
+        throw new Error(`Failed to fetch major updates: ${error.message}`)
+      }
+
+      return data as CompanyUpdate[]
+    }),
+
+  // For investors - get Snowball's major updates only
+  getSnowballMajorUpdates: publicProcedure
+    .query(async () => {
+      const supabase = await createClient()
+
+      // Get Snowball's major updates only
+      const { data: updates, error: updatesError } = await supabase
+        .from('company_updates')
+        .select('*')
+        .eq('company_id', 'snowball-demo-user')
+        .eq('type', 'major')
+        .order('created_at', { ascending: false })
+
+      if (updatesError) {
+        throw new Error(`Failed to fetch Snowball major updates: ${updatesError.message}`)
+      }
+
+      // Get Snowball's pitch deck
+      const { data: pitchDeck, error: deckError } = await supabase
+        .from('pitch_decks')
+        .select('*')
+        .eq('user_id', 'snowball-demo-user')
+        .eq('is_active', true)
+        .single()
+
+      if (deckError && deckError.code !== 'PGRST116') {
+        throw new Error(`Failed to fetch Snowball pitch deck: ${deckError.message}`)
+      }
+
+      // Get Snowball's profile
+      const { data: profile, error: profileError } = await supabase
+        .from('founders')
+        .select('*')
+        .eq('user_id', 'snowball-demo-user')
+        .eq('is_active', true)
+        .single()
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw new Error(`Failed to fetch Snowball profile: ${profileError.message}`)
+      }
+
+      // Get Snowball's team
+      const { data: team, error: teamError } = await supabase
+        .from('company_teams')
+        .select('*')
+        .eq('user_id', 'snowball-demo-user')
+        .order('created_at', { ascending: true })
+
+      if (teamError) {
+        throw new Error(`Failed to fetch Snowball team: ${teamError.message}`)
+      }
+
+      // Get Snowball's fundraising status
+      const { data: fundraisingStatus, error: statusError } = await supabase
+        .from('fundraising_status')
+        .select('*')
+        .eq('user_id', 'snowball-demo-user')
+        .single()
+
+      if (statusError && statusError.code !== 'PGRST116') {
+        throw new Error(`Failed to fetch Snowball fundraising status: ${statusError.message}`)
+      }
+
+      return {
+        updates: updates as CompanyUpdate[],
+        pitchDeck: pitchDeck as PitchDeck | null,
+        profile: profile,
+        team: team || [],
+        fundraisingStatus: fundraisingStatus || null,
+      }
+    }),
 })
