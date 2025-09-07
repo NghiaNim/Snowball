@@ -97,8 +97,8 @@ export default function SnowballTrackingPage() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const router = useRouter()
 
-  // Fetch real Snowball data using tRPC
-  const { data: snowballRealData, isLoading } = api.company.getSnowballData.useQuery()
+  // Fetch real Snowball data using tRPC - only major updates for investors
+  const { data: snowballRealData, isLoading } = api.company.getSnowballMajorUpdates.useQuery()
   
   // Fetch investor credit information if authenticated
   const { data: creditsInfo, refetch: refetchCredits } = api.investor.getCreditsInfo.useQuery(undefined, {
