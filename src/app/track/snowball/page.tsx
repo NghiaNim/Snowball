@@ -150,7 +150,7 @@ export default function SnowballTrackingPage() {
       // Get investor by email
       const { data: investor } = await supabase
         .from('investors')
-        .select('id')
+        .select('id, user_id')
         .eq('email', email)
         .eq('is_active', true)
         .single()
@@ -645,12 +645,25 @@ export default function SnowballTrackingPage() {
 
         {activeTab === 'updates' && (
           <div className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Company Updates</h2>
-              <div className="text-xs sm:text-sm text-gray-600">
-                {isLoading ? 'Loading...' : `${updates.length} updates posted`}
+            {!isTracking ? (
+              <div className="text-center py-8 sm:py-12 bg-gray-50 rounded-lg">
+                <div className="text-4xl sm:text-6xl mb-4">🔒</div>
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Updates Locked</h3>
+                <p className="text-sm sm:text-base text-gray-600 mb-4">
+                  You need to track Snowball to see their company updates.
+                </p>
+                <Button onClick={handleStartTracking} className="bg-blue-600 hover:bg-blue-700">
+                  Track Snowball
+                </Button>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Company Updates</h2>
+                  <div className="text-xs sm:text-sm text-gray-600">
+                    {isLoading ? 'Loading...' : `${updates.length} updates posted`}
+                  </div>
+                </div>
 
             {isLoading ? (
               <div className="text-center py-8 sm:py-12">
@@ -724,6 +737,8 @@ export default function SnowballTrackingPage() {
                   </div>
                 )}
               </div>
+            )}
+              </>
             )}
           </div>
         )}
