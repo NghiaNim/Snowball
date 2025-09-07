@@ -38,24 +38,115 @@ const fundraisingStatusConfig = {
 export default function InvestorDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [investor, setInvestor] = useState<{ id: string; email?: string; investor_name?: string; firm_name?: string; title?: string } | null>(null)
+  const [investor, setInvestor] = useState<{ id: string; user_id: string; email?: string; investor_name?: string; firm_name?: string; title?: string; credits?: number; subscription_tier?: string; max_credits?: number } | null>(null)
   const router = useRouter()
 
   // Fetch real Snowball data
   const { data: snowballData, isLoading: isLoadingSnowball } = api.company.getSnowballData.useQuery()
   
-  // Fetch investor credit information
-  const { data: creditsInfo, refetch: refetchCredits } = api.investor.getCreditsInfo.useQuery(undefined, {
-    enabled: isAuthenticated, // Only fetch if authenticated
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    retry: false, // Don't retry on auth errors
-  })
+  // Debug logging
+  useEffect(() => {
+    console.log('Investor dashboard debug:', {
+      isAuthenticated,
+      investor
+    })
+  }, [isAuthenticated, investor])
+  
+  // Load tracked startups
+  const loadTrackedStartups = async () => {
+    if (!investor) return
+    
+    setIsLoadingTracked(true)
+    try {
+      const supabase = createClient()
+      
+      // Get tracked relationships
+      const { data: relationships, error: relError } = await supabase
+        .from('founder_investor_relationships')
+        .select('id, founder_id, status')
+        .eq('investor_id', investor.id)
+        .eq('relationship_type', 'tracking')
+        .eq('status', 'active')
+      
+      if (relError) {
+        console.error('Error loading tracked startups:', relError)
+        console.error('Error details:', JSON.stringify(relError, null, 2))
+        return
+      }
+      
+      // Debug logging
+      console.log('Tracked relationships data:', relationships)
+      
+      if (!relationships || relationships.length === 0) {
+        setTrackedStartups([])
+        return
+      }
+      
+      // Get founder details for each tracked relationship
+      const founderIds = relationships.map(rel => rel.founder_id)
+      const { data: founders, error: foundersError } = await supabase
+        .from('founders')
+        .select('id, company_name, mission, industry, stage, location')
+        .in('id', founderIds)
+      
+      if (foundersError) {
+        console.error('Error loading founders:', foundersError)
+        return
+      }
+      
+      // Create a map of founder data for quick lookup
+      const foundersMap = new Map(founders?.map(f => [f.id, f]) || [])
+      
+      // Transform the data
+      const startups = relationships.map(rel => {
+        const founder = foundersMap.get(rel.founder_id)
+        return {
+          id: rel.id,
+          founder_id: rel.founder_id,
+          company_name: founder?.company_name || 'Unknown Company',
+          description: founder?.mission || 'No description available',
+          industry: founder?.industry || 'Unknown',
+          stage: founder?.stage || 'Unknown',
+          location: founder?.location || 'Unknown',
+          status: rel.status
+        }
+      })
+      
+      console.log('Transformed startups:', startups)
+      setTrackedStartups(startups)
+    } catch (error) {
+      console.error('Error loading tracked startups:', error)
+    } finally {
+      setIsLoadingTracked(false)
+    }
+  }
+  
+  // Load tracked startups when investor is available
+  useEffect(() => {
+    if (investor) {
+      loadTrackedStartups()
+    }
+  }, [investor])
   
   // Tracking functionality
   const [isTrackingSnowball, setIsTrackingSnowball] = useState(false)
   const [isTrackingLoading, setIsTrackingLoading] = useState(false)
-  const toggleTrackingMutation = api.investor.toggleTracking.useMutation()
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'featured' | 'tracked'>('featured')
+  
+  // Tracked startups state
+  const [trackedStartups, setTrackedStartups] = useState<Array<{
+    id: string
+    founder_id: string
+    company_name: string
+    description: string
+    industry: string
+    stage: string
+    location: string
+    status: string
+  }>>([])
+  const [isLoadingTracked, setIsLoadingTracked] = useState(false)
 
   // Check authentication and load investor data
   useEffect(() => {
@@ -68,7 +159,7 @@ export default function InvestorDashboard() {
           // Get investor profile
           const { data: investorData } = await supabase
             .from('investors')
-            .select('*')
+            .select('id, user_id, email, investor_name, firm_name, title, credits, subscription_tier, max_credits')
             .eq('user_id', user.id)
             .single()
           
@@ -109,26 +200,103 @@ export default function InvestorDashboard() {
 
 
   const handleToggleTracking = async () => {
-    if (!creditsInfo || (creditsInfo.credits < 100 && !isTrackingSnowball)) {
+    if (!investor || (investor.credits < 100 && !isTrackingSnowball)) {
       alert('Insufficient credits. Please upgrade your subscription to track more startups.')
       return
     }
 
     setIsTrackingLoading(true)
     try {
-      const result = await toggleTrackingMutation.mutateAsync({
-        company_id: 'f497a07f-18e7-45ad-a531-03a27c0a05ba' // Snowball founder ID
-      })
+      const supabase = createClient()
+      const snowballFounderId = 'f497a07f-18e7-45ad-a531-03a27c0a05ba'
 
-      setIsTrackingSnowball(result.tracked)
-      
-      // Refetch credits to update the UI
-      await refetchCredits()
-      
-      if (result.tracked) {
-        alert(`Successfully started tracking Snowball! You now have ${result.credits} credits remaining.`)
+      if (isTrackingSnowball) {
+        // Untrack - refund credits
+        const { error: deleteError } = await supabase
+          .from('founder_investor_relationships')
+          .delete()
+          .eq('investor_id', investor.id)
+          .eq('founder_id', snowballFounderId)
+          .eq('relationship_type', 'tracking')
+
+        if (deleteError) {
+          throw new Error(`Failed to untrack company: ${deleteError.message}`)
+        }
+
+        // Refund 100 credits
+        const newCredits = investor.credits + 100
+        const { error: updateError } = await supabase
+          .from('investors')
+          .update({ credits: newCredits })
+          .eq('id', investor.id)
+
+        if (updateError) {
+          throw new Error(`Failed to update credits: ${updateError.message}`)
+        }
+
+        // Record the transaction
+        await supabase
+          .from('credit_transactions')
+          .insert({
+            investor_id: investor.id,
+            amount: 100,
+            transaction_type: 'untrack_startup',
+            startup_id: snowballFounderId,
+            description: 'Credits refunded for untracking startup'
+          })
+
+        setIsTrackingSnowball(false)
+        setInvestor({ ...investor, credits: newCredits })
+        await loadTrackedStartups() // Refresh tracked startups list
+        alert(`You have stopped tracking Snowball. Your credits have been refunded to ${newCredits}.`)
       } else {
-        alert(`You have stopped tracking Snowball. Your credits have been refunded to ${result.credits}.`)
+        // Track - check credits first
+        if (investor.credits < 100) {
+          alert('Insufficient credits. Please upgrade your subscription to track more startups.')
+          return
+        }
+
+        // Track the company
+        const { error: insertError } = await supabase
+          .from('founder_investor_relationships')
+          .insert({
+            investor_id: investor.id,
+            founder_id: snowballFounderId,
+            relationship_type: 'tracking',
+            status: 'active',
+            initiated_by: 'investor'
+          })
+
+        if (insertError) {
+          throw new Error(`Failed to track company: ${insertError.message}`)
+        }
+
+        // Deduct 100 credits
+        const newCredits = investor.credits - 100
+        const { error: updateError } = await supabase
+          .from('investors')
+          .update({ credits: newCredits })
+          .eq('id', investor.id)
+
+        if (updateError) {
+          throw new Error(`Failed to update credits: ${updateError.message}`)
+        }
+
+        // Record the transaction
+        await supabase
+          .from('credit_transactions')
+          .insert({
+            investor_id: investor.id,
+            amount: -100,
+            transaction_type: 'track_startup',
+            startup_id: snowballFounderId,
+            description: 'Credits used for tracking startup'
+          })
+
+        setIsTrackingSnowball(true)
+        setInvestor({ ...investor, credits: newCredits })
+        await loadTrackedStartups() // Refresh tracked startups list
+        alert(`Successfully started tracking Snowball! You now have ${newCredits} credits remaining.`)
       }
     } catch (error: unknown) {
       console.error('Error toggling tracking:', error)
@@ -187,17 +355,11 @@ export default function InvestorDashboard() {
               <div className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-lg">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <span className="text-sm font-medium text-blue-700">
-                  {creditsInfo?.credits || 0} Credits
+                  {investor?.credits || 0} Credits
                 </span>
                 <span className="text-xs text-blue-600">
-                  ({creditsInfo?.subscription_tier || 'free'})
+                  ({investor?.subscription_tier || 'free'})
                 </span>
-                <button
-                  onClick={() => refetchCredits()}
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  Refresh
-                </button>
               </div>
               
               <div className="text-sm text-gray-600">
@@ -214,9 +376,38 @@ export default function InvestorDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tab Navigation */}
+        <div className="mb-8">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('featured')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'featured'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Featured Opportunity
+              </button>
+              <button
+                onClick={() => setActiveTab('tracked')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'tracked'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Tracked Startups ({trackedStartups.length})
+              </button>
+            </nav>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Featured Opportunity */}
-          <Card className="lg:col-span-2">
+          {/* Featured Opportunity Tab */}
+          {activeTab === 'featured' && (
+            <Card className="lg:col-span-2">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -242,7 +433,9 @@ export default function InvestorDashboard() {
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">Snowball</h3>
-                      <p className="text-gray-600 text-sm">Two-sided marketplace for startups & investors</p>
+                      <p className="text-gray-600 text-sm">
+                        {snowballData?.profile?.description || 'Two-sided marketplace connecting early-stage startups with investors through tribe-based networking. Leveraging communities built around accelerators, universities, and companies for high-quality deal flow.'}
+                      </p>
                     </div>
                     <div className="flex flex-col items-end space-y-2">
                       {snowballData?.fundraisingStatus ? (
@@ -311,6 +504,11 @@ export default function InvestorDashboard() {
                       B2B SaaS • Seed Stage • San Francisco, CA
                     </div>
                     <div className="flex space-x-2">
+                      <Link href="/track/snowball">
+                        <Button variant="outline" size="sm">
+                          👁️ Preview
+                        </Button>
+                      </Link>
                       {isTrackingSnowball ? (
                         <Button 
                           variant="outline" 
@@ -323,12 +521,12 @@ export default function InvestorDashboard() {
                       ) : (
                         <Button 
                           onClick={handleToggleTracking}
-                          disabled={isTrackingLoading || !creditsInfo || creditsInfo.credits < 100}
+                          disabled={isTrackingLoading || !investor || investor.credits < 100}
                           size="sm"
                         >
                           {isTrackingLoading ? 'Processing...' : 
-                           (!creditsInfo || creditsInfo.credits < 100) ? 
-                           `Need 100 Credits (${creditsInfo?.credits || 0} available)` : 
+                           (!investor || investor.credits < 100) ? 
+                           `Need 100 Credits (${investor?.credits || 0} available)` : 
                            'Track Startup'
                           }
                         </Button>
@@ -339,53 +537,144 @@ export default function InvestorDashboard() {
               )}
             </CardContent>
           </Card>
+          )}
 
-          {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Activity</CardTitle>
-              <CardDescription>Investment tracking overview</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Available Credits</span>
-                  <span className="font-semibold">{creditsInfo?.credits || 0}</span>
+          {/* Tracked Startups Tab */}
+          {activeTab === 'tracked' && (
+            <div className="lg:col-span-2 space-y-6">
+              {isLoadingTracked ? (
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-600">Loading tracked startups...</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : trackedStartups.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <div className="text-gray-500">
+                      <div className="text-4xl mb-4">📊</div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Tracked Startups</h3>
+                      <p className="text-gray-600 mb-4">
+                        You haven't started tracking any startups yet. Use the Featured Opportunity tab to discover and track startups.
+                      </p>
+                      <Button 
+                        onClick={() => setActiveTab('featured')}
+                        variant="outline"
+                      >
+                        View Featured Opportunity
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {trackedStartups.map((startup) => (
+                    <Card key={startup.id} className="hover:shadow-lg transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold text-lg">
+                                {startup.company_name.charAt(0)}
+                              </span>
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{startup.company_name}</h3>
+                              <p className="text-sm text-gray-600">{startup.industry}</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="text-green-600 border-green-600">
+                            👀 Tracking
+                          </Badge>
+                        </div>
+                        
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                          {startup.description}
+                        </p>
+                        
+                        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                          <span>{startup.stage}</span>
+                          <span>{startup.location}</span>
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          <Link href={`/track/snowball`} className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full">
+                              👁️ View Details
+                            </Button>
+                          </Link>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              // Handle untrack - you can implement this later
+                              alert('Untrack functionality coming soon!')
+                            }}
+                          >
+                            🚫 Untrack
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Subscription Tier</span>
-                  <span className="font-semibold capitalize">{creditsInfo?.subscription_tier || 'free'}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Companies Tracking</span>
-                  <span className="font-semibold">{isTrackingSnowball ? 1 : 0}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              )}
+            </div>
+          )}
 
-          {/* Subscription Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Subscription Management</CardTitle>
-              <CardDescription>Upgrade for more credits and features</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="text-sm text-gray-600">
-                  Current Plan: <span className="font-semibold capitalize">{creditsInfo?.subscription_tier || 'free'}</span>
+          {/* Quick Stats - Only show on featured tab */}
+          {activeTab === 'featured' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Activity</CardTitle>
+                <CardDescription>Investment tracking overview</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Available Credits</span>
+                    <span className="font-semibold">{investor?.credits || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Subscription Tier</span>
+                    <span className="font-semibold capitalize">{investor?.subscription_tier || 'free'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Companies Tracking</span>
+                    <span className="font-semibold">{trackedStartups.length}</span>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600">
-                  Credit Limit: <span className="font-semibold">{creditsInfo?.max_credits || 100}</span>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Subscription Info - Only show on featured tab */}
+          {activeTab === 'featured' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscription Management</CardTitle>
+                <CardDescription>Upgrade for more credits and features</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600">
+                    Current Plan: <span className="font-semibold capitalize">{investor?.subscription_tier || 'free'}</span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Credit Limit: <span className="font-semibold">{investor?.max_credits || 100}</span>
+                  </div>
+                  <Link href="/">
+                    <Button variant="outline" className="w-full">
+                      View Pricing Plans
+                    </Button>
+                  </Link>
                 </div>
-                <Link href="/">
-                  <Button variant="outline" className="w-full">
-                    View Pricing Plans
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
     </div>

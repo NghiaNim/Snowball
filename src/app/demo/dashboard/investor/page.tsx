@@ -374,7 +374,7 @@ export default function InvestorDashboard() {
                       <div>
                         <h3 className="font-semibold text-gray-900">Snowball</h3>
                         <p className="text-sm text-gray-600">
-                          {snowballData?.profile?.description || 'Two-sided marketplace for startups & investors'}
+                          {snowballData?.profile?.description || 'Two-sided marketplace connecting early-stage startups with investors through tribe-based networking. Leveraging communities built around accelerators, universities, and companies for high-quality deal flow.'}
                         </p>
                       </div>
                     </div>

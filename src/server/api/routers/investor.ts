@@ -37,19 +37,18 @@ export const investorRouter = createTRPCRouter({
   // Get current investor profile
   getProfile: protectedProcedure
     .query(async ({ ctx }) => {
-      const supabase = await createClient()
-      
-      const { data: profile, error } = await supabase
-        .from('investor_profiles')
-        .select('*')
-        .eq('user_id', ctx.user.id)
-        .single()
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-        throw new Error(`Failed to fetch investor profile: ${error.message}`)
-      }
-
-      return profile as InvestorProfile | null
+      // Return the investor info from context
+      return {
+        user_id: ctx.user.user_id,
+        investment_criteria: {},
+        preferred_stages: ctx.user.preferred_stages || [],
+        industries: ctx.user.investment_focus || [],
+        geographies: ctx.user.geographic_focus || [],
+        check_size_min: ctx.user.check_size_min,
+        check_size_max: ctx.user.check_size_max,
+        bio: ctx.user.bio,
+        linkedin_url: ctx.user.linkedin_url
+      } as InvestorProfile
     }),
 
   // Create or update investor profile
@@ -59,20 +58,17 @@ export const investorRouter = createTRPCRouter({
       const supabase = await createClient()
 
       const { data, error } = await supabase
-        .from('investor_profiles')
-        .upsert({
-          user_id: ctx.user.id,
-          ...input,
-          investment_criteria: {
-            stages: input.preferred_stages,
-            industries: input.industries,
-            geographies: input.geographies,
-            check_size_range: {
-              min: input.check_size_min,
-              max: input.check_size_max,
-            }
-          }
+        .from('investors')
+        .update({
+          preferred_stages: input.preferred_stages,
+          investment_focus: input.industries,
+          geographic_focus: input.geographies,
+          check_size_min: input.check_size_min,
+          check_size_max: input.check_size_max,
+          bio: input.bio,
+          linkedin_url: input.linkedin_url
         })
+        .eq('id', ctx.user.id)
         .select()
         .single()
 
@@ -80,13 +76,17 @@ export const investorRouter = createTRPCRouter({
         throw new Error(`Failed to update investor profile: ${error.message}`)
       }
 
-      // Update profile completion status
-      await supabase
-        .from('users')
-        .update({ profile_complete: true })
-        .eq('id', ctx.user.id)
-
-      return data as InvestorProfile
+      return {
+        user_id: data.user_id,
+        investment_criteria: {},
+        preferred_stages: data.preferred_stages || [],
+        industries: data.investment_focus || [],
+        geographies: data.geographic_focus || [],
+        check_size_min: data.check_size_min,
+        check_size_max: data.check_size_max,
+        bio: data.bio,
+        linkedin_url: data.linkedin_url
+      } as InvestorProfile
     }),
 
   // Get available tribes
@@ -207,16 +207,8 @@ export const investorRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const supabase = await createClient()
 
-      // Get investor info with current credits
-      const { data: investor, error: investorError } = await supabase
-        .from('investors')
-        .select('id, credits, subscription_tier')
-        .eq('user_id', ctx.user.id)
-        .single()
-
-      if (investorError) {
-        throw new Error(`Failed to fetch investor info: ${investorError.message}`)
-      }
+      // Use the investor info from context
+      const investor = ctx.user
 
       // Check if already tracking
       const { data: existing } = await supabase
@@ -409,19 +401,13 @@ export const investorRouter = createTRPCRouter({
   // Get investor credits and subscription info
   getCreditsInfo: protectedProcedure
     .query(async ({ ctx }) => {
-      const supabase = await createClient()
-      
-      const { data: investor, error } = await supabase
-        .from('investors')
-        .select('credits, subscription_tier, max_credits, subscription_expires_at')
-        .eq('user_id', ctx.user.id)
-        .single()
-
-      if (error && error.code !== 'PGRST116') {
-        throw new Error(`Failed to fetch credits info: ${error.message}`)
+      // Return the investor info from context
+      return {
+        credits: ctx.user.credits || 0,
+        subscription_tier: ctx.user.subscription_tier || 'free',
+        max_credits: ctx.user.max_credits || 100,
+        subscription_expires_at: ctx.user.subscription_expires_at || null
       }
-
-      return investor || { credits: 0, subscription_tier: 'free', max_credits: 100, subscription_expires_at: null }
     }),
 
   // Update subscription tier
@@ -430,16 +416,8 @@ export const investorRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const supabase = await createClient()
 
-      // Get current investor info
-      const { data: investor, error: fetchError } = await supabase
-        .from('investors')
-        .select('id, credits')
-        .eq('user_id', ctx.user.id)
-        .single()
-
-      if (fetchError) {
-        throw new Error(`Failed to fetch investor: ${fetchError.message}`)
-      }
+      // Use the investor info from context
+      const investor = ctx.user
 
       // Determine new credit limits based on tier
       const tierLimits = {
