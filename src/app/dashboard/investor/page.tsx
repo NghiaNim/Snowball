@@ -407,7 +407,27 @@ export default function InvestorDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Featured Opportunity Tab */}
           {activeTab === 'featured' && (
-            <Card className="lg:col-span-2">
+            <>
+              {isTrackingSnowball ? (
+                <Card className="lg:col-span-2">
+                  <CardContent className="p-6 text-center">
+                    <div className="text-gray-500">
+                      <div className="text-4xl mb-4">🎯</div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Already Tracking Snowball</h3>
+                      <p className="text-gray-600 mb-4">
+                        You&apos;re already tracking Snowball. Check the Tracked Startups tab to see their updates.
+                      </p>
+                      <Button 
+                        onClick={() => setActiveTab('tracked')}
+                        variant="outline"
+                      >
+                        View Tracked Startups
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="lg:col-span-2">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -434,7 +454,7 @@ export default function InvestorDashboard() {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">Snowball</h3>
                       <p className="text-gray-600 text-sm">
-                        {snowballData?.profile?.description || 'Two-sided marketplace connecting early-stage startups with investors through tribe-based networking. Leveraging communities built around accelerators, universities, and companies for high-quality deal flow.'}
+                        {snowballData?.profile?.mission || 'Two-sided marketplace connecting early-stage startups with investors through tribe-based networking. Leveraging communities built around accelerators, universities, and companies for high-quality deal flow.'}
                       </p>
                     </div>
                     <div className="flex flex-col items-end space-y-2">
@@ -499,6 +519,17 @@ export default function InvestorDashboard() {
                     ) : null
                   })()}
 
+                  {/* Pitch Deck Button */}
+                  {snowballData?.pitchDeck && (
+                    <div className="pt-4">
+                      <Link href={`/api/get-deck-url?user_id=snowball-demo-user`} target="_blank">
+                        <Button variant="outline" className="w-full">
+                          📄 View Pitch Deck
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between pt-4">
                     <div className="text-sm text-gray-600">
                       B2B SaaS • Seed Stage • San Francisco, CA
@@ -537,6 +568,8 @@ export default function InvestorDashboard() {
               )}
             </CardContent>
           </Card>
+              )}
+            </>
           )}
 
           {/* Tracked Startups Tab */}
