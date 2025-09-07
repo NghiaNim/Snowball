@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -53,7 +53,7 @@ export default function InvestorDashboard() {
   }, [isAuthenticated, investor])
   
   // Load tracked startups
-  const loadTrackedStartups = async () => {
+  const loadTrackedStartups = useCallback(async () => {
     if (!investor) return
     
     setIsLoadingTracked(true)
@@ -119,7 +119,7 @@ export default function InvestorDashboard() {
     } finally {
       setIsLoadingTracked(false)
     }
-  }
+  }, [investor])
   
   // Load tracked startups when investor is available
   useEffect(() => {
@@ -200,7 +200,7 @@ export default function InvestorDashboard() {
 
 
   const handleToggleTracking = async () => {
-    if (!investor || (investor.credits < 100 && !isTrackingSnowball)) {
+    if (!investor || (investor.credits && investor.credits < 100 && !isTrackingSnowball)) {
       alert('Insufficient credits. Please upgrade your subscription to track more startups.')
       return
     }
@@ -224,7 +224,7 @@ export default function InvestorDashboard() {
         }
 
         // Refund 100 credits
-        const newCredits = investor.credits + 100
+        const newCredits = (investor.credits || 0) + 100
         const { error: updateError } = await supabase
           .from('investors')
           .update({ credits: newCredits })
@@ -251,7 +251,7 @@ export default function InvestorDashboard() {
         alert(`You have stopped tracking Snowball. Your credits have been refunded to ${newCredits}.`)
       } else {
         // Track - check credits first
-        if (investor.credits < 100) {
+        if (!investor.credits || investor.credits < 100) {
           alert('Insufficient credits. Please upgrade your subscription to track more startups.')
           return
         }
@@ -272,7 +272,7 @@ export default function InvestorDashboard() {
         }
 
         // Deduct 100 credits
-        const newCredits = investor.credits - 100
+        const newCredits = (investor.credits || 0) - 100
         const { error: updateError } = await supabase
           .from('investors')
           .update({ credits: newCredits })
@@ -521,11 +521,11 @@ export default function InvestorDashboard() {
                       ) : (
                         <Button 
                           onClick={handleToggleTracking}
-                          disabled={isTrackingLoading || !investor || investor.credits < 100}
+                          disabled={isTrackingLoading || !investor || !investor.credits || investor.credits < 100}
                           size="sm"
                         >
                           {isTrackingLoading ? 'Processing...' : 
-                           (!investor || investor.credits < 100) ? 
+                           (!investor || !investor.credits || investor.credits < 100) ? 
                            `Need 100 Credits (${investor?.credits || 0} available)` : 
                            'Track Startup'
                           }
@@ -558,7 +558,7 @@ export default function InvestorDashboard() {
                       <div className="text-4xl mb-4">📊</div>
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No Tracked Startups</h3>
                       <p className="text-gray-600 mb-4">
-                        You haven't started tracking any startups yet. Use the Featured Opportunity tab to discover and track startups.
+                        You haven&apos;t started tracking any startups yet. Use the Featured Opportunity tab to discover and track startups.
                       </p>
                       <Button 
                         onClick={() => setActiveTab('featured')}
