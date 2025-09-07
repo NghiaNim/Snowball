@@ -413,9 +413,9 @@ export default function InvestorDashboard() {
                   <CardContent className="p-6 text-center">
                     <div className="text-gray-500">
                       <div className="text-4xl mb-4">🎯</div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Already Tracking Snowball</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No New Recommendations</h3>
                       <p className="text-gray-600 mb-4">
-                        You&apos;re already tracking Snowball. Check the Tracked Startups tab to see their updates.
+                        You&apos;re all caught up! Check the Tracked Startups tab to see updates from companies you&apos;re following.
                       </p>
                       <Button 
                         onClick={() => setActiveTab('tracked')}
@@ -481,7 +481,15 @@ export default function InvestorDashboard() {
                     
                     const metrics = latestMajorUpdate?.metrics as { mrr?: number; growth?: number; users?: number; retention?: number }
                     
-                    return metrics ? (
+                    // Only render if we have at least one metric value
+                    const hasMetrics = metrics && (
+                      typeof metrics.mrr === 'number' || 
+                      typeof metrics.growth === 'number' || 
+                      typeof metrics.users === 'number' || 
+                      typeof metrics.retention === 'number'
+                    )
+                    
+                    return hasMetrics ? (
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
                         {typeof metrics.mrr === 'number' && (
                           <div className="text-center">
@@ -522,7 +530,7 @@ export default function InvestorDashboard() {
                   {/* Pitch Deck Button */}
                   {snowballData?.pitchDeck && (
                     <div className="pt-4">
-                      <Link href={`/api/get-deck-url?user_id=snowball-demo-user`} target="_blank">
+                      <Link href={snowballData.pitchDeck.public_url || `/api/get-deck-url?user_id=snowball-demo-user`} target="_blank">
                         <Button variant="outline" className="w-full">
                           📄 View Pitch Deck
                         </Button>
@@ -642,9 +650,56 @@ export default function InvestorDashboard() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => {
-                              // Handle untrack - you can implement this later
-                              alert('Untrack functionality coming soon!')
+                            onClick={async () => {
+                              if (!investor) return
+                              
+                              try {
+                                const supabase = createClient()
+                                
+                                // Remove tracking relationship
+                                const { error: deleteError } = await supabase
+                                  .from('founder_investor_relationships')
+                                  .delete()
+                                  .eq('investor_id', investor.id)
+                                  .eq('founder_id', startup.founder_id)
+                                  .eq('relationship_type', 'tracking')
+
+                                if (deleteError) {
+                                  throw new Error(`Failed to untrack: ${deleteError.message}`)
+                                }
+
+                                // Refund 100 credits
+                                const newCredits = (investor.credits || 0) + 100
+                                const { error: updateError } = await supabase
+                                  .from('investors')
+                                  .update({ credits: newCredits })
+                                  .eq('id', investor.id)
+
+                                if (updateError) {
+                                  throw new Error(`Failed to update credits: ${updateError.message}`)
+                                }
+
+                                // Record the transaction
+                                await supabase
+                                  .from('credit_transactions')
+                                  .insert({
+                                    investor_id: investor.id,
+                                    amount: 100,
+                                    transaction_type: 'untrack_startup',
+                                    startup_id: startup.founder_id,
+                                    description: `Credits refunded for untracking ${startup.company_name}`
+                                  })
+
+                                // Update local state
+                                setInvestor({ ...investor, credits: newCredits })
+                                setIsTrackingSnowball(false) // Update tracking status
+                                await loadTrackedStartups() // Refresh the list
+                                
+                                alert(`Successfully untracked ${startup.company_name}. Your credits have been refunded to ${newCredits}.`)
+                              } catch (error) {
+                                console.error('Error untracking:', error)
+                                alert('Failed to untrack startup. Please try again.')
+                              }
                             }}
                           >
                             🚫 Untrack

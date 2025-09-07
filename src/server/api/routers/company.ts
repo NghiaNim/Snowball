@@ -242,6 +242,17 @@ export const companyRouter = createTRPCRouter({
         throw new Error(`Failed to update company profile: ${error.message}`)
       }
 
+      // Create a minor update for profile change
+      await supabase
+        .from('company_updates')
+        .insert({
+          company_id: input.user_id,
+          title: 'Profile Updated',
+          content: `Company profile has been updated with new information.`,
+          type: 'minor',
+          metrics: {},
+        })
+
       return data
     }),
 
@@ -278,6 +289,17 @@ export const companyRouter = createTRPCRouter({
         if (error) {
           throw new Error(`Failed to update team: ${error.message}`)
         }
+
+        // Create a minor update for team change
+        await supabase
+          .from('company_updates')
+          .insert({
+            company_id: input.user_id,
+            title: 'Team Updated',
+            content: `Team information has been updated with ${input.team_members.length} team member${input.team_members.length === 1 ? '' : 's'}.`,
+            type: 'minor',
+            metrics: {},
+          })
 
         return data
       }
