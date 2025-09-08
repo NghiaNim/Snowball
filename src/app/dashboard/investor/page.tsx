@@ -780,51 +780,51 @@ export default function InvestorDashboard() {
           {/* Quick Stats - Only show on featured tab */}
           {activeTab === 'featured' && (
             <div className="space-y-4 lg:space-y-0">
-              <Card>
-                <CardHeader>
+          <Card>
+            <CardHeader>
                   <CardTitle className="text-lg">Your Activity</CardTitle>
                   <CardDescription className="text-sm">Investment tracking overview</CardDescription>
-                </CardHeader>
-                <CardContent>
+            </CardHeader>
+            <CardContent>
                   <div className="space-y-3 sm:space-y-4">
-                    <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center">
                       <span className="text-sm sm:text-base text-gray-600">Available Credits</span>
                       <span className="font-semibold text-sm sm:text-base">{investor?.credits || 0}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
+                </div>
+                <div className="flex justify-between items-center">
                       <span className="text-sm sm:text-base text-gray-600">Subscription Tier</span>
                       <span className="font-semibold text-sm sm:text-base capitalize">{investor?.subscription_tier || 'free'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
+                </div>
+                <div className="flex justify-between items-center">
                       <span className="text-sm sm:text-base text-gray-600">Companies Tracking</span>
                       <span className="font-semibold text-sm sm:text-base">{trackedStartups.length}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-              {/* Subscription Info */}
-              <Card>
-                <CardHeader>
+          {/* Subscription Info */}
+          <Card>
+            <CardHeader>
                   <CardTitle className="text-lg">Subscription Management</CardTitle>
                   <CardDescription className="text-sm">Upgrade for more credits and features</CardDescription>
-                </CardHeader>
-                <CardContent>
+            </CardHeader>
+            <CardContent>
                   <div className="space-y-3 sm:space-y-4">
-                    <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600">
                       Current Plan: <span className="font-semibold capitalize">{investor?.subscription_tier || 'free'}</span>
-                    </div>
-                    <div className="text-sm text-gray-600">
+                </div>
+                <div className="text-sm text-gray-600">
                       Credit Limit: <span className="font-semibold">{investor?.max_credits || 100}</span>
-                    </div>
-                    <Link href="/">
-                      <Button variant="outline" className="w-full">
-                        View Pricing Plans
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+                <Link href="/">
+                  <Button variant="outline" className="w-full">
+                    View Pricing Plans
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
             </div>
           )}
         </div>

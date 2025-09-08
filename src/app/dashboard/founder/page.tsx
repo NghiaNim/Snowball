@@ -585,42 +585,43 @@ export default function SnowballDashboard() {
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Responsive header - mobile and desktop versions */}
-          <div className="py-4 md:py-6">
-            {/* Mobile: Top row: Logo and company info */}
-            <div className="flex items-center justify-between mb-3 md:mb-0 md:hidden">
-              <div className="flex items-center min-w-0 flex-1 pr-2">
-                <Image
-                  src="/snowball.png"
-                  alt="Snowball Logo"
-                  width={28}
-                  height={28}
-                  className="mr-2 md:mr-3 flex-shrink-0"
-                />
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-base md:text-2xl font-bold text-gray-900 truncate">
-                    Snowball Founder Dashboard
+          <div className="py-3 md:py-6">
+            {/* Mobile: Compact layout */}
+            <div className="flex flex-col space-y-3 md:hidden">
+              {/* Top row: Logo and logout */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Image
+                    src="/snowball.png"
+                    alt="Snowball Logo"
+                    width={24}
+                    height={24}
+                    className="mr-2 flex-shrink-0"
+                  />
+                  <h1 className="text-lg font-bold text-gray-900">
+                    Snowball
                   </h1>
                 </div>
+                <Button variant="outline" size="sm" onClick={handleLogout} className="text-xs px-3 py-1">
+                  Logout
+                </Button>
               </div>
               
-              {/* Mobile: Stacked right side elements */}
-              <div className="flex flex-col items-end space-y-1 md:hidden">
-                <div className="flex items-center space-x-1">
+              {/* Bottom row: Status and team info */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
                   {fundraisingStatus ? (
                     <Badge 
                       variant="outline" 
-                      className={`${fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.color} ${fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.borderColor} text-xs px-2 py-0.5`}
+                      className={`${fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.color} ${fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.borderColor} text-xs px-2 py-1`}
                     >
                       {fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.icon} {fundraisingStatusConfig[fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.label}
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-green-600 border-green-600 text-xs px-2 py-0.5">
+                    <Badge variant="outline" className="text-green-600 border-green-600 text-xs px-2 py-1">
                       🟢 Active Fundraising
                     </Badge>
                   )}
-                  <Button variant="outline" size="sm" onClick={handleLogout} className="text-xs px-2 py-1">
-                    Logout
-                  </Button>
                 </div>
                 <div className="text-xs text-gray-600">
                   👤 Snowball Team

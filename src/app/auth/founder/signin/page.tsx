@@ -8,10 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import Image from 'next/image'
-import { createClient } from '@/lib/supabase/client'
 
 export default function FounderSignIn() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -23,37 +22,18 @@ export default function FounderSignIn() {
     setError('')
 
     try {
-      const supabase = createClient()
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (authError) {
-        setError(authError.message)
-        return
-      }
-
-      if (data.user) {
-        // Check if user is a founder
-        const { data: founder, error: founderError } = await supabase
-          .from('founders')
-          .select('*')
-          .eq('user_id', data.user.id)
-          .single()
-
-        if (founderError || !founder) {
-          setError('No founder profile found for this account')
-          return
-        }
-
-        // Store auth state
+      // Simple username/password check for Snowball demo
+      if (username === 'snowball' && password === 'llabwons2025') {
+        // Store auth state for Snowball founder
         localStorage.setItem('snowball-auth', 'true')
-        localStorage.setItem('snowball-user-email', data.user.email || '')
-        localStorage.setItem('snowball-user-id', data.user.id)
+        localStorage.setItem('snowball-user-email', 'snowball@demo.com')
+        localStorage.setItem('snowball-user-id', 'snowball-demo-user')
+        localStorage.setItem('snowball-login-time', Date.now().toString())
         
         // Redirect to founder dashboard
         router.push('/dashboard/founder')
+      } else {
+        setError('Invalid username or password.')
       }
     } catch (error) {
       console.error('Sign in error:', error)
@@ -97,15 +77,15 @@ export default function FounderSignIn() {
           <CardContent>
             <form onSubmit={handleSignIn} className="space-y-6">
               <div>
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                   className="mt-1"
-                  placeholder="Enter your email"
+                  placeholder="Enter username"
                 />
               </div>
 
@@ -118,7 +98,7 @@ export default function FounderSignIn() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   className="mt-1"
-                  placeholder="Enter your password"
+                  placeholder="Enter password"
                 />
               </div>
 
