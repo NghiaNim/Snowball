@@ -554,4 +554,40 @@ export const trackingRouter = createTRPCRouter({
 
       return data as FounderInvestorRelationship[]
     }),
+
+  // Track pricing button clicks
+  trackPricingInteraction: publicProcedure
+    .input(z.object({
+      user_id: z.string().optional(),
+      user_email: z.string().email().optional(),
+      tier_name: z.string(),
+      action: z.enum(['viewed', 'clicked_button', 'interested']),
+      button_text: z.string().optional(),
+      metadata: z.object({
+        page: z.string().optional(),
+        timestamp: z.string().optional(),
+      }).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const supabase = await createClient()
+
+      const { data, error } = await supabase
+        .from('pricing_tracking')
+        .insert({
+          user_id: input.user_id || 'anonymous',
+          user_email: input.user_email,
+          tier_name: input.tier_name,
+          action: input.action,
+          button_text: input.button_text,
+          metadata: input.metadata || {},
+        })
+        .select()
+        .single()
+
+      if (error) {
+        throw new Error(`Failed to track pricing interaction: ${error.message}`)
+      }
+
+      return data
+    }),
 })

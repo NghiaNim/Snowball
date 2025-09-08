@@ -5,14 +5,66 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import Image from 'next/image'
+import { api } from '@/lib/trpc/client'
+import { useState, useEffect } from 'react'
 
 export default function Home() {
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = () => {
+      const authData = localStorage.getItem('snowball-auth')
+      const userEmail = localStorage.getItem('snowball-user-email')
+      const userId = localStorage.getItem('snowball-user-id')
+      
+      if (authData === 'true' && userEmail) {
+        setUserEmail(userEmail)
+        setUserId(userId)
+      }
+    }
+
+    checkAuth()
+    
+    // Listen for auth changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'snowball-auth' || e.key === 'snowball-user-email') {
+        checkAuth()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
   const scrollToSection = (id: string) => {
     const section = document.getElementById(id);
     if (section) {
       section.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  // Track pricing interactions
+  const trackPricingInteraction = api.tracking.trackPricingInteraction.useMutation()
+
+  const handlePricingButtonClick = async (tierName: string, buttonText: string) => {
+    try {
+      await trackPricingInteraction.mutateAsync({
+        user_id: userId || undefined,
+        user_email: userEmail || undefined,
+        tier_name: tierName,
+        action: 'clicked_button',
+        button_text: buttonText,
+        metadata: {
+          page: 'landing',
+          timestamp: new Date().toISOString(),
+        }
+      })
+    } catch (error) {
+      console.error('Failed to track pricing interaction:', error)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -33,29 +85,30 @@ export default function Home() {
             
             {/* Navigation */}
             <div className="hidden md:flex items-center space-x-6">
-              <button onClick={() => scrollToSection('features')} className="text-gray-600 hover:text-gray-900 transition-colors">
+              <button onClick={() => scrollToSection('features')} className="text-gray-900 hover:text-gray-700 transition-colors font-medium">
                 Features
               </button>
-              <button onClick={() => scrollToSection('pricing')} className="text-gray-600 hover:text-gray-900 transition-colors">
+              <button onClick={() => scrollToSection('pricing')} className="text-gray-900 hover:text-gray-700 transition-colors font-medium">
                 Pricing
               </button>
-              <Link href="/demo">
-                <Button variant="ghost" size="sm">Demo</Button>
-              </Link>
               <Link href="/auth/founder/signin">
-                <Button variant="ghost" size="sm">Login</Button>
+                <Button variant="ghost" size="sm" className="text-gray-900 hover:text-gray-700 font-medium">Login</Button>
               </Link>
-              <Button size="sm" onClick={() => scrollToSection('signup-links')}>Get Started</Button>
+              <Link href="/demo">
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">Demo</Button>
+              </Link>
             </div>
 
             {/* Mobile Navigation */}
             <div className="flex items-center space-x-2 md:hidden">
-              <Link href="/demo">
-                <Button variant="ghost" size="sm" className="text-xs px-2">Demo</Button>
+              <Link href="/auth/founder/signin">
+                <Button variant="ghost" size="sm" className="text-xs px-2">Login</Button>
               </Link>
-              <Button size="sm" className="text-xs px-2" onClick={() => scrollToSection('signup-links')}>
-                Start
-              </Button>
+              <Link href="/demo">
+                <Button size="sm" className="text-xs px-2 bg-blue-600 hover:bg-blue-700 text-white">
+                  Demo
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -66,7 +119,7 @@ export default function Home() {
         <div className="pt-16 pb-16 text-center md:pt-24 md:pb-20 lg:pt-32">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl lg:text-7xl">
-              AI-Native Platform for
+              AI-Native Fundraising Platform for
               <span className="block text-blue-600 mt-2">Early Stage Venture</span>
           </h1>
             <p className="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
@@ -109,7 +162,7 @@ export default function Home() {
                 </div>
                 <CardTitle className="text-2xl text-gray-900">For Founders</CardTitle>
                 <CardDescription className="text-gray-600 text-base">
-                  Get discovered by the right investors through your trusted networks
+                  Get discovered by and build relationships with the right investors for you
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
@@ -120,7 +173,7 @@ export default function Home() {
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <p className="ml-3 text-gray-700">Create compelling profiles with pitch decks and real-time traction updates</p>
+                    <p className="ml-3 text-gray-700">Send updates and build trust with investors so they&apos;re ready to invest when you&apos;re ready to raise</p>
                 </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mt-0.5">
@@ -128,7 +181,7 @@ export default function Home() {
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <p className="ml-3 text-gray-700">Get tracked by investors from your accelerator, university, or company alumni networks</p>
+                    <p className="ml-3 text-gray-700">Receive curated investor matches who are actively investing in companies like yours</p>
                 </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mt-0.5">
@@ -136,7 +189,7 @@ export default function Home() {
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <p className="ml-3 text-gray-700">Receive meeting requests and build relationships with interested investors</p>
+                    <p className="ml-3 text-gray-700">Manage and grow your entire investor network so you have access to capital at every stage</p>
                 </li>
               </ul>
               </CardContent>
@@ -152,7 +205,7 @@ export default function Home() {
                 </div>
                 <CardTitle className="text-2xl text-gray-900">For Investors</CardTitle>
                 <CardDescription className="text-gray-600 text-base">
-                  Discover high-quality deal flow through your trusted entrepreneurial ecosystems
+                  Discover, track, engage with, and invest in the startups that interest you the most
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
@@ -163,7 +216,7 @@ export default function Home() {
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <p className="ml-3 text-gray-700">Access curated startups from your alumni networks and trusted connections</p>
+                    <p className="ml-3 text-gray-700">Get on the cap table by staying updated and engaged with your most promising opportunities</p>
                 </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0 w-6 h-6 bg-green-600 rounded-full flex items-center justify-center mt-0.5">
@@ -171,7 +224,7 @@ export default function Home() {
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <p className="ml-3 text-gray-700">Track interesting companies with a credit-based system for efficient deal management</p>
+                    <p className="ml-3 text-gray-700">Build conviction in new opportunities by seeing how the founders execute and move the business forward</p>
           </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0 w-6 h-6 bg-green-600 rounded-full flex items-center justify-center mt-0.5">
@@ -179,7 +232,7 @@ export default function Home() {
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <p className="ml-3 text-gray-700">Set investment criteria and receive AI-powered deal recommendations</p>
+                    <p className="ml-3 text-gray-700">Receive curated startups from trusted ecosystems that match your investment thesis</p>
                   </li>
                 </ul>
               </CardContent>
@@ -191,16 +244,16 @@ export default function Home() {
         <div className="py-16 md:py-20 bg-gray-50 rounded-3xl" id="pricing">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Simple, Credit-Based Pricing
+              Pricing Tiers
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Pay only for what you track. Start with 100 free credits, then choose the plan that fits your deal flow needs.
+              Start with 300 free credits to track 3 startups. Choose the plan that fits your deal flow needs.
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-4 lg:gap-6 max-w-7xl mx-auto px-4">
             {/* Free Tier */}
-            <Card className="relative border-2 border-gray-200">
+            <Card className="relative border-2 border-gray-200 flex flex-col">
               <CardHeader className="text-center pb-6">
                 <CardTitle className="text-xl text-gray-900">Free</CardTitle>
                 <div className="mt-4">
@@ -209,46 +262,8 @@ export default function Home() {
                 </div>
                 <CardDescription className="mt-2">Perfect for getting started</CardDescription>
               </CardHeader>
-              <CardContent className="pt-0">
-                <ul className="space-y-3 mb-6">
-                  <li className="flex items-center">
-                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-gray-700">100 credits included</span>
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-gray-700">Track 1 startup</span>
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-gray-700">Basic tribe access</span>
-                  </li>
-                </ul>
-                <Button className="w-full" variant="outline">Get Started</Button>
-              </CardContent>
-            </Card>
-
-            {/* Premium Tier */}
-            <Card className="relative border-2 border-blue-500 shadow-lg">
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <Badge className="bg-blue-500 text-white px-3 py-1">Most Popular</Badge>
-              </div>
-              <CardHeader className="text-center pb-6">
-                <CardTitle className="text-xl text-gray-900">Premium</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-gray-900">$19.99</span>
-                  <span className="text-gray-600 ml-1">/month</span>
-                </div>
-                <CardDescription className="mt-2">For active angel investors</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <ul className="space-y-3 mb-6">
+              <CardContent className="pt-0 flex flex-col flex-grow">
+                <ul className="space-y-3 mb-6 flex-grow">
                   <li className="flex items-center">
                     <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -259,104 +274,192 @@ export default function Home() {
                     <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-700">Track up to 3 startups</span>
+                    <span className="text-gray-700">Track 3 startups</span>
                   </li>
                   <li className="flex items-center">
                     <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-700">Priority tribe access</span>
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-gray-700">AI recommendations</span>
+                    <span className="text-gray-700">Join 1 tribe <span className="text-xs text-gray-500">(coming soon)</span></span>
                   </li>
                 </ul>
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">Choose Premium</Button>
+                <Button 
+                  className="w-full mt-auto" 
+                  variant="outline"
+                  onClick={() => handlePricingButtonClick('Free', 'Get Started')}
+                >
+                  Get Started
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Basic Tier */}
+            <Card className="relative border-2 border-blue-500 shadow-lg flex flex-col">
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                <Badge className="bg-blue-500 text-white px-3 py-1">Most Popular</Badge>
+              </div>
+              <CardHeader className="text-center pb-6">
+                <CardTitle className="text-xl text-gray-900">Basic</CardTitle>
+                <div className="mt-4">
+                  <span className="text-4xl font-bold text-gray-900">$99</span>
+                  <span className="text-gray-600 ml-1">/month</span>
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  or $79/month annually <span className="text-green-600 font-medium">(Save 20%)</span>
+                </div>
+                <CardDescription className="mt-2">For active angel investors</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0 flex flex-col flex-grow">
+                <ul className="space-y-3 mb-6 flex-grow">
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">1,000 credits included + 300 free credits</span>
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">Track 13 startups at any given time</span>
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">Join 3 tribes + 1 free tribe <span className="text-xs text-gray-500">(coming soon)</span></span>
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">AI curated deal flow 1/month <span className="text-xs text-gray-500">(coming soon)</span></span>
+                  </li>
+                </ul>
+                <Button 
+                  className="w-full mt-auto bg-blue-600 hover:bg-blue-700"
+                  onClick={() => handlePricingButtonClick('Basic', 'Choose Basic')}
+                >
+                  Choose Basic
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Professional Tier */}
+            <Card className="relative border-2 border-gray-200 flex flex-col">
+              <CardHeader className="text-center pb-6">
+                <CardTitle className="text-xl text-gray-900">Professional</CardTitle>
+                <div className="mt-4">
+                  <span className="text-4xl font-bold text-gray-900">$499</span>
+                  <span className="text-gray-600 ml-1">/month</span>
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  or $399/month annually <span className="text-green-600 font-medium">(Save 20%)</span>
+                </div>
+                <CardDescription className="mt-2">For VCs and family offices</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0 flex flex-col flex-grow">
+                <ul className="space-y-3 mb-6 flex-grow">
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">5,000 credits included + 300 free credits</span>
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">Track 53 startups at any given time</span>
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">Join 15 tribes + 1 free tribe <span className="text-xs text-gray-500">(coming soon)</span></span>
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">AI curated deal flow 1/week <span className="text-xs text-gray-500">(coming soon)</span></span>
+                  </li>
+                </ul>
+                <Button 
+                  className="w-full mt-auto" 
+                  variant="outline"
+                  onClick={() => handlePricingButtonClick('Professional', 'Choose Professional')}
+                >
+                  Choose Professional
+                </Button>
               </CardContent>
             </Card>
 
             {/* Enterprise Tier */}
-            <Card className="relative border-2 border-gray-200">
+            <Card className="relative border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 flex flex-col">
               <CardHeader className="text-center pb-6">
                 <CardTitle className="text-xl text-gray-900">Enterprise</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-gray-900">$49.99</span>
-                  <span className="text-gray-600 ml-1">/month</span>
-                </div>
-                <CardDescription className="mt-2">For VCs and family offices</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <ul className="space-y-3 mb-6">
-                  <li className="flex items-center">
-                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-gray-700">1,000 credits included</span>
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-gray-700">Track up to 10 startups</span>
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-gray-700">All tribe access</span>
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-gray-700">Advanced analytics</span>
-                  </li>
-                </ul>
-                <Button className="w-full" variant="outline">Choose Enterprise</Button>
-              </CardContent>
-            </Card>
-
-            {/* Custom Tier */}
-            <Card className="relative border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50">
-              <CardHeader className="text-center pb-6">
-                <CardTitle className="text-xl text-gray-900">Custom</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-gray-900">Custom</span>
+                  <span className="text-4xl font-bold text-gray-900">Call for pricing</span>
                 </div>
                 <CardDescription className="mt-2">For institutional investors</CardDescription>
               </CardHeader>
-              <CardContent className="pt-0">
-                <ul className="space-y-3 mb-6">
+              <CardContent className="pt-0 flex flex-col flex-grow">
+                <ul className="space-y-3 mb-6 flex-grow">
                   <li className="flex items-center">
                     <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-700">Unlimited credits</span>
+                    <span className="text-gray-700">Unlimited Credits</span>
                   </li>
                   <li className="flex items-center">
                     <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-700">Unlimited tracking</span>
+                    <span className="text-gray-700">Unlimited Tracking</span>
                   </li>
                   <li className="flex items-center">
                     <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-700">Dedicated support</span>
+                    <span className="text-gray-700">Unlimited Tribes <span className="text-xs text-gray-500">(coming soon)</span></span>
                   </li>
                   <li className="flex items-center">
                     <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-700">Custom integrations</span>
-          </li>
-              </ul>
+                    <span className="text-gray-700">AI curated deal flow 1/day <span className="text-xs text-gray-500">(coming soon)</span></span>
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">Advanced startup insights</span>
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">Dedicated Support</span>
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">Custom Integrations</span>
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">Advanced Analytics</span>
+                  </li>
+                </ul>
                 <a href="mailto:pete@joinsnowball.io">
-                  <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                  <Button 
+                    className="w-full mt-auto bg-purple-600 hover:bg-purple-700 text-white"
+                    onClick={() => handlePricingButtonClick('Enterprise', 'Contact Sales')}
+                  >
                     Contact Sales
                   </Button>
                 </a>
@@ -379,14 +482,13 @@ export default function Home() {
           <p className="text-center text-lg text-gray-600 px-4 mb-12 max-w-3xl mx-auto">
             Connect through communities built around shared experiences and trusted networks
           </p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 sm:gap-6">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 sm:gap-6">
             {[
-              'Y Combinator Alumni',
-              'Stanford Network',
-              'Ex-Google/Meta',
-              'Techstars Community',
-              'MIT Connections',
+              'Universities and Colleges',
+              'Accelerators & Incubators',
+              'Corporate Alumni',
               'Angel Groups',
+              'Other Entrepreneurial Ecosystems',
             ].map((tribe) => (
               <Card key={tribe} className="text-center p-4 hover:shadow-lg transition-shadow">
                 <CardContent className="pt-4">
