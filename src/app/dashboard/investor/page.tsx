@@ -336,7 +336,49 @@ export default function InvestorDashboard() {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="py-4 sm:py-6">
+            {/* Mobile Layout */}
+            <div className="flex flex-col space-y-4 sm:hidden">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Image
+                    src="/snowball.png"
+                    alt="Snowball Logo"
+                    width={28}
+                    height={28}
+                    className="mr-2"
+                  />
+                  <div>
+                    <h1 className="text-lg font-bold text-gray-900">Dashboard</h1>
+                    <p className="text-xs text-gray-600">Welcome back, {investor.investor_name}</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
+                  Sign Out
+                </Button>
+              </div>
+              
+              {/* Credit Display - Mobile */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-lg">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-blue-700">
+                    {investor?.credits || 0} Credits
+                  </span>
+                  <span className="text-xs text-blue-600">
+                    ({investor?.subscription_tier || 'free'})
+                  </span>
+                </div>
+                
+                <div className="text-xs text-gray-600 text-right">
+                  {investor.firm_name && `${investor.firm_name}`}
+                  {investor.title && ` • ${investor.title}`}
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Layout */}
+            <div className="hidden sm:flex justify-between items-center">
             <div className="flex items-center">
               <Image
                 src="/snowball.png"
@@ -355,10 +397,10 @@ export default function InvestorDashboard() {
               <div className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-lg">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <span className="text-sm font-medium text-blue-700">
-                  {investor?.credits || 0} Credits
+                    {investor?.credits || 0} Credits
                 </span>
                 <span className="text-xs text-blue-600">
-                  ({investor?.subscription_tier || 'free'})
+                    ({investor?.subscription_tier || 'free'})
                 </span>
               </div>
               
@@ -369,6 +411,7 @@ export default function InvestorDashboard() {
               <Button variant="outline" onClick={handleSignOut}>
                 Sign Out
               </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -377,34 +420,36 @@ export default function InvestorDashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tab Navigation */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+            <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
               <button
                 onClick={() => setActiveTab('featured')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   activeTab === 'featured'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Featured Opportunity
+                <span className="hidden sm:inline">Featured Opportunity</span>
+                <span className="sm:hidden">Featured</span>
               </button>
               <button
                 onClick={() => setActiveTab('tracked')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   activeTab === 'tracked'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Tracked Startups ({trackedStartups.length})
+                <span className="hidden sm:inline">Tracked Startups ({trackedStartups.length})</span>
+                <span className="sm:hidden">Tracked ({trackedStartups.length})</span>
               </button>
             </nav>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Featured Opportunity Tab */}
           {activeTab === 'featured' && (
             <>
@@ -427,15 +472,15 @@ export default function InvestorDashboard() {
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2">
             <CardHeader>
-              <div className="flex justify-between items-start">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start space-y-3 sm:space-y-0">
                 <div>
-                  <CardTitle className="text-xl">Featured Opportunity</CardTitle>
-                  <CardDescription>High-potential startup in your investment focus</CardDescription>
+                  <CardTitle className="text-lg sm:text-xl">Featured Opportunity</CardTitle>
+                  <CardDescription className="text-sm">High-potential startup in your investment focus</CardDescription>
                 </div>
                 <Link href="/track/snowball">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
                     View Details →
                   </Button>
                 </Link>
@@ -450,14 +495,30 @@ export default function InvestorDashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div>
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between sm:block">
                       <h3 className="text-lg font-semibold text-gray-900">Snowball</h3>
-                      <p className="text-gray-600 text-sm">
+                        <div className="sm:hidden">
+                          {snowballData?.fundraisingStatus ? (
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${fundraisingStatusConfig[snowballData.fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.color} ${fundraisingStatusConfig[snowballData.fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.borderColor}`}
+                            >
+                              {fundraisingStatusConfig[snowballData.fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.icon} {fundraisingStatusConfig[snowballData.fundraisingStatus.status as keyof typeof fundraisingStatusConfig]?.label}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                              🟢 Active Fundraising
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-gray-600 text-sm mt-2 leading-relaxed">
                         {snowballData?.profile?.mission || 'Two-sided marketplace connecting early-stage startups with investors through tribe-based networking. Leveraging communities built around accelerators, universities, and companies for high-quality deal flow.'}
                       </p>
                     </div>
-                    <div className="flex flex-col items-end space-y-2">
+                    <div className="hidden sm:flex flex-col items-end space-y-2">
                       {snowballData?.fundraisingStatus ? (
                         <Badge 
                           variant="outline" 
@@ -490,7 +551,7 @@ export default function InvestorDashboard() {
                     )
                     
                     return hasMetrics ? (
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
                         {typeof metrics.mrr === 'number' && (
                           <div className="text-center">
                             <div className="text-lg font-semibold text-gray-900">
@@ -538,13 +599,13 @@ export default function InvestorDashboard() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-4 space-y-3 sm:space-y-0">
                     <div className="text-sm text-gray-600">
                       B2B SaaS • Seed Stage • San Francisco, CA
                     </div>
-                    <div className="flex space-x-2">
-                      <Link href="/track/snowball">
-                        <Button variant="outline" size="sm">
+                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                      <Link href="/track/snowball" className="w-full sm:w-auto">
+                        <Button variant="outline" size="sm" className="w-full sm:w-auto">
                           👁️ Preview
                         </Button>
                       </Link>
@@ -554,6 +615,7 @@ export default function InvestorDashboard() {
                           onClick={handleToggleTracking}
                           disabled={isTrackingLoading}
                           size="sm"
+                          className="w-full sm:w-auto"
                         >
                           {isTrackingLoading ? 'Processing...' : '👀 Stop Tracking'}
                         </Button>
@@ -562,6 +624,7 @@ export default function InvestorDashboard() {
                           onClick={handleToggleTracking}
                           disabled={isTrackingLoading || !investor || !investor.credits || investor.credits < 100}
                           size="sm"
+                          className="w-full sm:w-auto"
                         >
                           {isTrackingLoading ? 'Processing...' : 
                            (!investor || !investor.credits || investor.credits < 100) ? 
@@ -611,7 +674,7 @@ export default function InvestorDashboard() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {trackedStartups.map((startup) => (
                     <Card key={startup.id} className="hover:shadow-lg transition-shadow">
                       <CardContent className="p-6">
@@ -641,7 +704,7 @@ export default function InvestorDashboard() {
                           <span>{startup.location}</span>
                         </div>
                         
-                        <div className="flex space-x-2">
+                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                           <Link href={`/track/snowball`} className="flex-1">
                             <Button variant="outline" size="sm" className="w-full">
                               👁️ View Details
@@ -650,6 +713,7 @@ export default function InvestorDashboard() {
                           <Button 
                             variant="outline" 
                             size="sm"
+                            className="w-full sm:w-auto"
                             onClick={async () => {
                               if (!investor) return
                               
@@ -715,53 +779,53 @@ export default function InvestorDashboard() {
 
           {/* Quick Stats - Only show on featured tab */}
           {activeTab === 'featured' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Activity</CardTitle>
-                <CardDescription>Investment tracking overview</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Available Credits</span>
-                    <span className="font-semibold">{investor?.credits || 0}</span>
+            <div className="space-y-4 lg:space-y-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Your Activity</CardTitle>
+                  <CardDescription className="text-sm">Investment tracking overview</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm sm:text-base text-gray-600">Available Credits</span>
+                      <span className="font-semibold text-sm sm:text-base">{investor?.credits || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm sm:text-base text-gray-600">Subscription Tier</span>
+                      <span className="font-semibold text-sm sm:text-base capitalize">{investor?.subscription_tier || 'free'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm sm:text-base text-gray-600">Companies Tracking</span>
+                      <span className="font-semibold text-sm sm:text-base">{trackedStartups.length}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Subscription Tier</span>
-                    <span className="font-semibold capitalize">{investor?.subscription_tier || 'free'}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Companies Tracking</span>
-                    <span className="font-semibold">{trackedStartups.length}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
 
-          {/* Subscription Info - Only show on featured tab */}
-          {activeTab === 'featured' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Subscription Management</CardTitle>
-                <CardDescription>Upgrade for more credits and features</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="text-sm text-gray-600">
-                    Current Plan: <span className="font-semibold capitalize">{investor?.subscription_tier || 'free'}</span>
+              {/* Subscription Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Subscription Management</CardTitle>
+                  <CardDescription className="text-sm">Upgrade for more credits and features</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="text-sm text-gray-600">
+                      Current Plan: <span className="font-semibold capitalize">{investor?.subscription_tier || 'free'}</span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Credit Limit: <span className="font-semibold">{investor?.max_credits || 100}</span>
+                    </div>
+                    <Link href="/">
+                      <Button variant="outline" className="w-full">
+                        View Pricing Plans
+                      </Button>
+                    </Link>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    Credit Limit: <span className="font-semibold">{investor?.max_credits || 100}</span>
-                  </div>
-                  <Link href="/">
-                    <Button variant="outline" className="w-full">
-                      View Pricing Plans
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
       </main>
