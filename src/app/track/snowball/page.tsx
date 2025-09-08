@@ -693,7 +693,9 @@ export default function SnowballTrackingPage() {
                       </div>
                       
                       <div className="prose max-w-none">
-                        <p className="text-gray-700 text-sm sm:text-base leading-relaxed">{update.content}</p>
+                        <div className="text-gray-700 text-sm sm:text-base leading-relaxed whitespace-pre-line">
+                          {update.content}
+                        </div>
                       </div>
 
                       {update.metrics && typeof update.metrics === 'object' && (
