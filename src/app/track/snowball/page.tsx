@@ -367,7 +367,6 @@ export default function SnowballTrackingPage() {
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'updates', label: 'Updates' },
-              { key: 'deck', label: 'Pitch Deck' },
               { key: 'team', label: 'Team' }
             ].map((tab) => (
               <button
@@ -414,11 +413,44 @@ export default function SnowballTrackingPage() {
                     <div className="font-medium text-sm sm:text-base">{profile?.funding_target || snowballData.company.fundingTarget}</div>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <div className="text-xs sm:text-sm text-gray-600">Website</div>
-                  <Link href={profile?.website || snowballData.company.website} target="_blank" className="text-blue-600 hover:underline text-sm sm:text-base break-all">
-                    {profile?.website || snowballData.company.website}
-                  </Link>
+                <div className="mt-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="text-xs sm:text-sm text-gray-600">Website</div>
+                    <Link href={profile?.website || snowballData.company.website} target="_blank" className="text-blue-600 hover:underline text-sm sm:text-base break-all">
+                      {profile?.website || snowballData.company.website}
+                    </Link>
+                  </div>
+                  <div className="flex-shrink-0">
+                    {pitchDeck ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            // Get fresh signed URL
+                            const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(pitchDeck.file_url)}`)
+                            const result = await response.json()
+                            
+                            if (result.success) {
+                              window.open(result.publicUrl, '_blank')
+                            } else {
+                              alert('Failed to access deck. Please contact the team.')
+                            }
+                          } catch (error) {
+                            console.error('Error getting deck URL:', error)
+                            alert('Failed to access deck. Please contact the team.')
+                          }
+                        }}
+                        className="whitespace-nowrap"
+                      >
+                        📄 View Pitch Deck
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" disabled className="whitespace-nowrap">
+                        📄 Pitch Deck Coming Soon
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -745,98 +777,6 @@ export default function SnowballTrackingPage() {
           </div>
         )}
 
-        {activeTab === 'deck' && (
-          <div className="space-y-4 sm:space-y-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Pitch Deck</h2>
-            
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg sm:text-xl">Snowball Pitch Deck</CardTitle>
-                <CardDescription className="text-sm">
-                  View our latest investor presentation
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="text-center py-8 sm:py-12">
-                    <div className="animate-spin rounded-full h-8 sm:h-12 w-8 sm:w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600 text-sm sm:text-base">Loading pitch deck...</p>
-                  </div>
-                ) : pitchDeck ? (
-                  <div className="text-center py-8 sm:py-12 bg-gray-50 rounded-lg">
-                    <div className="text-4xl sm:text-6xl mb-4">📄</div>
-                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Pitch Deck Available</h3>
-                    <p className="text-sm sm:text-base text-gray-600 mb-2 px-4">
-                      Snowball&apos;s investor presentation showcasing our vision, traction, and growth plans.
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-500 mb-6 break-all px-4">
-                      File: {pitchDeck.file_name}
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                      <Button 
-                        className="w-full sm:w-auto"
-                        onClick={async () => {
-                          try {
-                            // Get fresh signed URL
-                            const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(pitchDeck.file_url)}`)
-                            const result = await response.json()
-                            
-                            if (result.success) {
-                              window.open(result.publicUrl, '_blank')
-                            } else {
-                              alert('Failed to access deck. Please contact the team.')
-                            }
-                          } catch (error) {
-                            console.error('Error getting deck URL:', error)
-                            alert('Failed to access deck. Please contact the team.')
-                          }
-                        }}
-                      >
-                        📖 View Deck
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        onClick={async () => {
-                          try {
-                            // Get fresh signed URL for download
-                            const response = await fetch(`/api/get-deck-url?file=${encodeURIComponent(pitchDeck.file_url)}`)
-                            const result = await response.json()
-                            
-                            if (result.success) {
-                              const link = document.createElement('a')
-                              link.href = result.publicUrl
-                              link.download = pitchDeck.file_name || 'snowball-deck'
-                              link.click()
-                            } else {
-                              alert('Failed to download deck. Please contact the team.')
-                            }
-                          } catch (error) {
-                            console.error('Error getting deck URL:', error)
-                            alert('Failed to download deck. Please contact the team.')
-                          }
-                        }}
-                      >
-                        📥 Download
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 sm:py-12 bg-gray-50 rounded-lg">
-                    <div className="text-4xl sm:text-6xl mb-4">📄</div>
-                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Pitch Deck Coming Soon</h3>
-                    <p className="text-sm sm:text-base text-gray-600 mb-6 px-4">
-                      Snowball&apos;s pitch deck will be available here once uploaded.
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-500 px-4">
-                      Check back later or contact the team directly for access.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
         {activeTab === 'team' && (
           <div className="space-y-6 sm:space-y-8">
