@@ -506,10 +506,13 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200">
         <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-12 md:flex md:items-center md:justify-between lg:px-8">
-          <div className="md:order-1">
+          <div className="md:order-1 flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4">
             <p className="text-center text-xs leading-5 text-gray-500">
               &copy; 2024 Snowball. All rights reserved.
             </p>
+            <Link href="/cos" className="text-xs text-gray-400 hover:text-blue-600 transition-colors duration-200 opacity-60 hover:opacity-100">
+              click here for candy 🍭
+            </Link>
           </div>
         </div>
       </footer>

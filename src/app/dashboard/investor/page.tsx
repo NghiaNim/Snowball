@@ -126,7 +126,7 @@ export default function InvestorDashboard() {
     if (investor) {
       loadTrackedStartups()
     }
-  }, [investor])
+  }, [investor, loadTrackedStartups])
   
   // Tracking functionality
   const [isTrackingSnowball, setIsTrackingSnowball] = useState(false)

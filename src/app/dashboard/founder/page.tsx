@@ -678,6 +678,7 @@ export default function SnowballDashboard() {
               { key: 'investors', label: 'Investors' },
               { key: 'deck', label: 'Pitch Deck' },
               { key: 'fundraising', label: 'Fundraising' },
+              { key: 'ai-agent', label: 'AI Agent' },
               { key: 'profile', label: 'Profile' }
             ].map((tab) => (
               <button
@@ -1245,6 +1246,10 @@ export default function SnowballDashboard() {
           </div>
         )}
 
+        {activeTab === 'ai-agent' && (
+          <AIAgentInterface />
+        )}
+
         {activeTab === 'profile' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -1606,5 +1611,1028 @@ function CreateUpdateForm({
         </Button>
       </div>
     </form>
+  )
+}
+
+// AI Agent Interface Component
+function AIAgentInterface() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      type: 'assistant' as const,
+      content: "I'm your AI Chief of Staff. I manage your operations, optimize your strategic initiatives, coordinate your network, and handle executive tasks. What can I help you accomplish today?",
+      timestamp: new Date(),
+      suggestions: [
+        "I'm traveling to San Francisco next week",
+        "Help me prepare for the Primary VC event", 
+        "Who should I connect with for fundraising?",
+        "Draft strategic communications for my network"
+      ]
+    }
+  ])
+  const [inputMessage, setInputMessage] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
+  const [typewriterText, setTypewriterText] = useState('')
+  const [isTypewriting, setIsTypewriting] = useState(false)
+  const [currentTypewritingId, setCurrentTypewritingId] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [showEmailDraft, setShowEmailDraft] = useState(false)
+  const [emailDraftData, setEmailDraftData] = useState<{
+    recipient: string
+    subject: string
+    content: string
+    type: string
+  } | null>(null)
+
+  // Typewriter effect for AI responses
+  const typewriterEffect = (text: string, messageId: string, callback?: () => void) => {
+    setIsTypewriting(true)
+    setCurrentTypewritingId(messageId)
+    setTypewriterText('')
+    let i = 0
+    
+    const timer = setInterval(() => {
+      if (i < text.length) {
+        // Build the string from scratch each time to avoid race conditions
+        const currentText = text.substring(0, i + 1)
+        setTypewriterText(currentText)
+        i++
+      } else {
+        clearInterval(timer)
+        setIsTypewriting(false)
+        setCurrentTypewritingId(null)
+        if (callback) callback()
+      }
+    }, 15) // Faster speed for longer content
+    
+    // Store the timer to clear it if needed
+    return timer
+  }
+
+  // Scroll to bottom of messages
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      const messagesContainer = document.querySelector('[data-messages-container]')
+      if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight
+      }
+    }, 100)
+  }
+
+  interface Message {
+    id: string
+    type: 'user' | 'assistant'
+    content: string
+    timestamp: Date
+    suggestions?: string[]
+    networkData?: {
+      contacts: { name: string; connection: string; lastContact: string; relevance: string }[]
+      events: { name: string; date: string; attendees: number; relevance: string }[]
+    }
+    scheduleData?: {
+      upcoming: { title: string; date: string; type: string; description: string }[]
+      suggestions: { action: string; priority: string; description: string }[]
+    }
+  }
+
+  const networkMockData = {
+    contacts: [
+      { name: "Sarah Chen", connection: "Stanford Alumni", lastContact: "2 weeks ago", relevance: "Series A investor at Kleiner Perkins" },
+      { name: "Michael Rodriguez", connection: "LinkedIn", lastContact: "1 month ago", relevance: "Former Stripe colleague, now at a16z" },
+      { name: "Alex Kim", connection: "Twitter", lastContact: "3 days ago", relevance: "CEO of successful SF startup, YC alumnus" },
+      { name: "Jennifer Wu", connection: "YC Network", lastContact: "1 week ago", relevance: "Angel investor, 15+ exits" },
+      { name: "David Park", connection: "SF Tech Meetup", lastContact: "2 months ago", relevance: "VP at Sequoia Capital" }
+    ],
+    events: [
+      { name: "Primary VC Demo Day", date: "Next Friday", attendees: 200, relevance: "Key fundraising opportunity" },
+      { name: "SF Tech Mixer", date: "Tomorrow", attendees: 150, relevance: "Networking with local founders" },
+      { name: "Stanford Alumni Meetup", date: "Next Monday", attendees: 80, relevance: "University connections" }
+    ]
+  }
+
+  const scheduleMockData = {
+    upcoming: [
+      { title: "Board Meeting Prep", date: "Today 3PM", type: "meeting", description: "Prepare Q4 metrics and fundraising update" },
+      { title: "San Francisco Trip", date: "Next Week Mon-Wed", type: "travel", description: "Investor meetings and Primary VC event" },
+      { title: "Product Demo", date: "Friday 2PM", type: "presentation", description: "Demo for Primary VC panel" },
+      { title: "Team All-Hands", date: "Next Thursday", type: "meeting", description: "Monthly team sync and planning" }
+    ],
+    suggestions: [
+      { action: "Schedule coffee with Sarah Chen", priority: "High", description: "She'll be in SF during your trip" },
+      { action: "Send Primary VC prep email to network", priority: "High", description: "Let your contacts know about the upcoming demo" },
+      { action: "Book dinner with Stanford alumni", priority: "Medium", description: "Leverage university connections" }
+    ]
+  }
+
+  const handleSendMessage = async (messageText?: string) => {
+    const text = messageText || inputMessage.trim()
+    if (!text) return
+
+    // Prevent multiple submissions
+    if (isProcessing) return
+    setIsProcessing(true)
+
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: text,
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, userMessage])
+    setInputMessage('')
+    setIsTyping(true)
+    
+    // Scroll to show the user message
+    scrollToBottom()
+
+    // Simulate AI thinking process with multiple stages
+    const thinkingStages = [
+      "Initializing neural network analysis...",
+      "Processing network graph relationships...", 
+      "Cross-referencing contact databases...",
+      "Analyzing meeting patterns and availability...",
+      "Calculating relationship strength scores...",
+      "Generating strategic recommendations..."
+    ]
+
+    // Show thinking process
+    for (let i = 0; i < thinkingStages.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, 800))
+      // Update thinking indicator could be added here
+    }
+
+    // Professional AI processing with detailed analysis
+    setTimeout(() => {
+      let assistantContent: string
+      let assistantData: Partial<Message> = {}
+      
+      if (text.toLowerCase().includes('san francisco') || text.toLowerCase().includes('sf')) {
+        assistantContent = `San Francisco Executive Trip Plan - Strategic Analysis Complete.
+
+EXECUTIVE SUMMARY:
+As your Chief of Staff, I've orchestrated a comprehensive analysis of your upcoming San Francisco visit. I've evaluated 847 professional contacts, analyzed 124 investor profiles, and optimized your schedule for maximum strategic impact across fundraising, partnerships, and market expansion opportunities.
+
+STRATEGIC OBJECTIVES ANALYSIS:
+• Primary Goal: Advance Series A fundraising conversations
+• Secondary Goal: Establish west coast partnership pipeline  
+• Tertiary Goal: Market intelligence gathering and competitive analysis
+
+PRIORITIZED STAKEHOLDER ENGAGEMENT:
+• 5 tier-1 investors with portfolio alignment and active deployment
+• 3 strategic partnership opportunities in adjacent markets
+• 2 potential advisory board candidates with operational expertise
+• Optimal scheduling windows optimized for executive energy and travel logistics
+
+RESOURCE ALLOCATION RECOMMENDATIONS:
+Your current traction metrics ($140K MRR, 12% growth) position you favorably for substantive conversations. I've prepared tailored value propositions for each stakeholder category to maximize conversion probability.
+
+EXECUTION READINESS:
+All communications, meeting agendas, and follow-up sequences are prepared for immediate deployment upon your approval.`
+
+        assistantData = {
+          networkData: networkMockData,
+          suggestions: [
+            "Draft personalized outreach emails",
+            "Schedule coffee meetings at optimal times", 
+            "Book dinner with investor group",
+            "Coordinate executive stakeholder meeting"
+          ]
+        }
+      } else if (text.toLowerCase().includes('primary vc') || text.toLowerCase().includes('pitch')) {
+        assistantContent = `Primary VC Demo Day - Executive Preparation Brief.
+
+STRATEGIC EVENT ANALYSIS:
+As your Chief of Staff, I've conducted comprehensive due diligence on Primary VC Demo Day. This represents a tier-1 opportunity for advancing your Series A objectives, with carefully vetted attendee alignment and optimal timing within your fundraising timeline.
+
+STAKEHOLDER INTELLIGENCE:
+• 3 priority relationships already in our network attending (warm path)
+• 2 investors with documented marketplace investment thesis
+• 1 LP with direct influence on Series A fund deployment decisions
+• Target check size alignment: $500K - $2M (perfect fit for your round sizing)
+
+COMPETITIVE POSITIONING ASSESSMENT:
+Your company metrics ($140K MRR, 12% growth, 15K users) rank in the top 20% of Primary VC cohort companies historically. Your tribe-based approach provides clear differentiation in an increasingly commoditized marketplace sector.
+
+STRATEGIC NARRATIVE OPTIMIZATION:
+I've refined your positioning to emphasize community-driven network effects and defensible user acquisition, themes that resonate with current venture capital investment patterns.
+
+EXECUTION FRAMEWORK:
+Complete preparation package ready: pre-event relationship warming sequences, pitch optimization, post-demo follow-up campaigns, and strategic partnership conversations all coordinated for maximum impact.`
+
+        assistantData = {
+          networkData: {
+            contacts: networkMockData.contacts.filter(c => 
+              c.name.includes('Sarah') || c.name.includes('Michael') || c.name.includes('Jennifer')
+            ),
+            events: networkMockData.events.filter(e => e.name.includes('Primary'))
+          },
+          suggestions: [
+            "Send strategic pre-event outreach",
+            "Schedule post-demo investor calls", 
+            "Prepare follow-up material package",
+            "Coordinate warm introductions"
+          ]
+        }
+      } else if (text.toLowerCase().includes('schedule') || text.toLowerCase().includes('calendar')) {
+        assistantContent = `Executive Schedule Optimization - Strategic Analysis Complete.
+
+CALENDAR EFFICIENCY ASSESSMENT:
+As your Chief of Staff, I've analyzed your schedule patterns, stakeholder engagement frequency, and strategic priority alignment to optimize your time allocation for maximum business impact.
+
+EXECUTIVE TIME OPTIMIZATION OPPORTUNITIES:
+• 3 strategic windows available for high-value stakeholder meetings
+• 2 optimal blocks for deep work and strategic planning sessions
+• 1 prime slot for group investor dinner coordination
+• 4 critical follow-up conversations requiring immediate scheduling
+
+STAKEHOLDER RELATIONSHIP PORTFOLIO:
+Comprehensive analysis reveals 8 tier-1 relationships requiring executive attention and 12 relationships in maintenance mode. I've prioritized based on strategic value, timing sensitivity, and potential business impact.
+
+STRATEGIC TIME ALLOCATION FRAMEWORK:
+Recommending 60% focus on new strategic relationship development, 40% on existing stakeholder nurturing, optimized for Series A advancement and operational excellence.
+
+PRODUCTIVITY ARCHITECTURE:
+Structured 2-hour strategic work blocks between stakeholder engagements to maintain operational momentum while executing your relationship and fundraising strategy.`
+
+        assistantData = {
+          scheduleData: scheduleMockData,
+          suggestions: [
+            "Optimize executive schedule",
+            "Add strategic relationship calls",
+            "Schedule follow-up touchpoints", 
+            "Block focused preparation time"
+          ]
+        }
+      } else if (text.toLowerCase().includes('email') || text.toLowerCase().includes('connect')) {
+        assistantContent = `Executive Communications Suite - Strategic Deployment Ready.
+
+COMMUNICATIONS STRATEGY ANALYSIS:
+As your Chief of Staff, I've analyzed your recent company milestones, stakeholder relationship history, and strategic positioning to craft executive-level communication campaigns that advance your business objectives.
+
+EXECUTIVE MESSAGING FRAMEWORK:
+Each communication will feature:
+• Strategic value propositions tailored to recipient priorities
+• Company milestone integration showcasing momentum
+• Relationship-specific context leveraging shared connections
+• Executive-level positioning appropriate for C-suite engagement
+
+CAMPAIGN PERFORMANCE OPTIMIZATION:
+Communications optimized for executive attention:
+• 67% open rate targeting (premium executive tier)
+• 23% response rate through strategic relationship scoring
+• C-suite appropriate tone and strategic framing
+• Optimal timing based on executive engagement patterns
+
+STRATEGIC COMMUNICATION PORTFOLIOS:
+• Series A investor milestone updates with traction narratives
+• Strategic partnership introduction requests through warm connections
+• Executive event announcements and board-level invitations
+• Stakeholder relationship maintenance and strategic check-ins
+
+Complete executive communication infrastructure ready for immediate deployment with real-time optimization.`
+
+        assistantData = {
+          suggestions: [
+            "Draft investor update emails",
+            "Request strategic introductions", 
+            "Share milestone announcements",
+            "Schedule relationship touchpoints"
+          ]
+        }
+      } else {
+        assistantContent = `AI Chief of Staff - Executive Support Systems Online.
+
+COMPREHENSIVE EXECUTIVE CAPABILITIES:
+As your AI Chief of Staff, I provide end-to-end executive support including strategic planning, stakeholder relationship management, operational coordination, and business development orchestration. My analytical engine continuously optimizes your leadership effectiveness and business outcomes.
+
+STRATEGIC FRAMEWORKS:
+• Executive Dashboard Analytics: Real-time business intelligence and KPI optimization
+• Stakeholder Relationship Portfolio: Strategic mapping and engagement optimization
+• Operational Excellence: Process automation and efficiency maximization
+• Strategic Communications: Executive-level messaging and relationship development
+
+AVAILABLE SERVICES:
+• Strategic Network Analysis: Deep-dive relationship mapping and opportunity identification
+• Communication Optimization: AI-generated, personalized outreach campaigns
+• Schedule Intelligence: Calendar optimization for maximum executive effectiveness
+• Relationship Maintenance: Automated follow-up and touchpoint management
+
+DEPLOYMENT OPTIONS:
+Ready to execute comprehensive strategic initiatives aligned with your business objectives and executive leadership goals.`
+
+        assistantData = {
+          suggestions: [
+            "Analyze network for specific goals",
+            "Optimize relationship strategy",
+            "Generate targeted outreach", 
+            "Schedule strategic touchpoints"
+          ]
+        }
+      }
+      
+      // Create a temporary message for typewriter effect
+      const tempAssistantResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: '',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, tempAssistantResponse])
+      setIsTyping(false)
+      
+      // Scroll to show the AI is responding
+      scrollToBottom()
+      
+      // Use typewriter effect for professional feel
+      typewriterEffect(assistantContent, tempAssistantResponse.id, () => {
+        // Replace the temporary message with the final one
+        const finalAssistantResponse: Message = {
+          id: tempAssistantResponse.id,
+          type: 'assistant',
+          content: assistantContent,
+          timestamp: new Date(),
+          ...assistantData
+        }
+        setMessages(prev => prev.map(msg => 
+          msg.id === tempAssistantResponse.id ? finalAssistantResponse : msg
+        ))
+        
+        // Reset processing state and scroll to show complete message
+        setIsProcessing(false)
+        scrollToBottom()
+      })
+    }, 2000) // Longer processing time for detailed analysis
+  }
+
+  const handleSuggestionClick = (suggestion: string) => {
+    // Prevent multiple clicks during processing
+    if (isProcessing) return
+    
+    // Check if this is an email-related suggestion
+    if (suggestion.toLowerCase().includes('email') || suggestion.toLowerCase().includes('draft')) {
+      // Show email draft modal (no immediate scrolling for email)
+      const emailData = generateEmailDraft(suggestion)
+      setEmailDraftData(emailData)
+      setShowEmailDraft(true)
+    } else {
+      // For other suggestions, handle as normal message (will scroll automatically)
+      handleSendMessage(suggestion)
+    }
+  }
+
+  const generateEmailDraft = (suggestion: string) => {
+    if (suggestion.includes('Sarah Chen')) {
+      return {
+        recipient: 'Sarah Chen',
+        subject: 'Coffee during SF trip - Snowball update',
+        content: `Hi Sarah,
+
+Hope you're doing well! I'll be in San Francisco next week for some investor meetings and would love to catch up over coffee.
+
+We've made incredible progress at Snowball since we last spoke:
+• Reached $140K MRR with 12% month-over-month growth
+• Expanded to 15,000 active users
+• Secured partnerships with 3 major accelerators
+
+I'd love to share more about our journey and hear about what you're working on at Kleiner Perkins. Are you free for a quick coffee on Tuesday or Wednesday?
+
+Best regards,
+Alex Johnson
+CEO, Snowball`,
+        type: 'strategic'
+      }
+    } else if (suggestion.includes('Primary VC')) {
+      return {
+        recipient: 'My Network',
+        subject: 'Snowball presenting at Primary VC Demo Day 🚀',
+        content: `Hi there,
+
+Exciting news! Snowball has been selected to present at Primary VC's Demo Day this Friday.
+
+We've been building the future of startup-investor connections through tribe-based networking, and the progress has been incredible:
+• $140K Monthly Recurring Revenue
+• 15,000+ active users across our platform
+• 124 investor relationships facilitated
+• Partnerships with YC, Techstars, and other top accelerators
+
+If you're interested in attending or know someone who should be there, please let me know. Would love to see familiar faces in the audience!
+
+You can also track our progress anytime at: https://joinsnowball.io/track/snowball
+
+Thanks for all your support,
+Alex Johnson
+CEO & Co-founder, Snowball`,
+        type: 'announcement'
+      }
+    } else {
+      return {
+        recipient: 'Network Contact',
+        subject: 'Quick check-in from Snowball',
+        content: `Hi there,
+
+Hope you're doing well! Just wanted to share a quick update on Snowball's progress.
+
+We've been making great strides in connecting startups with investors through our tribe-based networking platform. Would love to catch up soon and share more details.
+
+Let me know if you'd like to grab coffee or have a quick call in the coming weeks.
+
+Best,
+Alex Johnson
+CEO, Snowball`,
+        type: 'general'
+      }
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Professional AI Header */}
+      <div className="relative bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+        <div className="neural-pattern absolute inset-0 opacity-50"></div>
+        <div className="data-stream absolute top-0 left-0 right-0"></div>
+        <div className="relative z-10 px-8 py-12 text-center">
+          <div className="flex items-center justify-center mb-6">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center animate-neural-pulse mr-4">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white">
+                <path d="M12 2L2 7V10C2 16 6 20.5 12 22C18 20.5 22 16 22 10V7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <path d="M12 1V23" stroke="currentColor" strokeWidth="1" opacity="0.5"/>
+                <path d="M1 12H23" stroke="currentColor" strokeWidth="1" opacity="0.5"/>
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-slate-800 tracking-tight">
+                AI Chief of Staff
+              </h1>
+              <div className="flex items-center justify-center mt-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-status-indicator mr-2"></div>
+                <span className="text-sm text-slate-600 font-medium">Neural Engine Active</span>
+              </div>
+            </div>
+          </div>
+          
+          <p className="text-lg text-slate-600 mb-6 max-w-2xl mx-auto leading-relaxed">
+            Your executive assistant powered by AI. Managing operations, strategy, and relationships so you can focus on what matters most.
+          </p>
+          
+          <div className="flex flex-wrap justify-center gap-3 text-sm">
+            <div className="px-4 py-2 bg-white/80 border border-slate-200 rounded-lg ai-glow-subtle">
+              <span className="text-slate-700 font-medium">Executive Operations</span>
+            </div>
+            <div className="px-4 py-2 bg-white/80 border border-slate-200 rounded-lg ai-glow-subtle">
+              <span className="text-slate-700 font-medium">Strategic Planning</span>
+            </div>
+            <div className="px-4 py-2 bg-white/80 border border-slate-200 rounded-lg ai-glow-subtle">
+              <span className="text-slate-700 font-medium">Relationship Management</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Professional Chat Interface */}
+        <div className="xl:col-span-2">
+          <Card className="h-[600px] flex flex-col ai-border">
+            <CardHeader className="border-b border-slate-200 bg-slate-50">
+              <CardTitle className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                    <path d="M21 15A2 2 0 0 1 19 17H7L4 20V5A2 2 0 0 1 6 3H19A2 2 0 0 1 21 5Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
+                <div>
+                  <span className="text-slate-800 font-semibold">Neural Chat Interface</span>
+                  <div className="flex items-center mt-1">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-2 animate-status-indicator"></div>
+                    <span className="text-xs text-slate-500">Connected to AI Engine</span>
+                  </div>
+                </div>
+              </CardTitle>
+              <CardDescription className="text-slate-600">
+                Direct access to your AI Chief of Staff for executive support and strategic decision-making
+              </CardDescription>
+            </CardHeader>
+            
+            {/* Messages */}
+            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 bg-white" data-messages-container>
+              {messages.map((message) => (
+                <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] p-4 rounded-lg ${
+                    message.type === 'user' 
+                      ? 'bg-blue-600 text-white ai-glow-subtle' 
+                      : 'bg-slate-50 text-slate-800 border border-slate-200'
+                  } animate-subtle-fade-in`}>
+                    {/* AI Typing Effect */}
+                    {isTypewriting && message.type === 'assistant' && message.id === currentTypewritingId ? (
+                      <div>
+                        <p className="text-sm leading-relaxed whitespace-pre-line typewriter-cursor">{typewriterText}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>
+                    )}
+                    
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs opacity-70">
+                        {message.timestamp.toLocaleTimeString()}
+                      </p>
+                      {message.type === 'assistant' && (
+                        <div className="flex items-center text-xs opacity-70">
+                          <div className="w-1 h-1 bg-current rounded-full mr-1"></div>
+                          <span>AI Response</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Professional Suggestions */}
+                    {message.suggestions && message.content && !isTypewriting && (
+                      <div className="mt-4 space-y-2">
+                        <div className="text-xs text-slate-500 mb-2 font-medium">Suggested Actions:</div>
+                        {message.suggestions.map((suggestion, idx) => (
+                          <button
+                            key={idx}
+                            disabled={isProcessing}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className={`block w-full text-left p-3 text-xs rounded-lg border transition-all duration-200 ${
+                              isProcessing 
+                                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                                : message.type === 'user' 
+                                  ? 'bg-white/10 hover:bg-white/20 border-white/20 text-white' 
+                                  : 'bg-white hover:bg-blue-50 border-slate-200 hover:border-blue-300 text-slate-700'
+                            }`}
+                          >
+                            <span className="font-medium">{suggestion}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Professional Network Data Display */}
+                    {message.networkData && message.content && !isTypewriting && (
+                      <div className="mt-4 space-y-3">
+                        <div className={`p-4 rounded-lg border ${
+                          message.type === 'user' 
+                            ? 'bg-white/10 border-white/20' 
+                            : 'bg-white border-slate-200'
+                        }`}>
+                          <h4 className={`font-semibold text-sm mb-3 flex items-center ${
+                            message.type === 'user' ? 'text-white' : 'text-slate-800'
+                          }`}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mr-2">
+                              <path d="M16 21V19A4 4 0 0 0 12 15H6A4 4 0 0 0 2 19V21" stroke="currentColor" strokeWidth="2"/>
+                              <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+                              <path d="M22 21V19A4 4 0 0 0 16 13.5L15 15L22 21Z" stroke="currentColor" strokeWidth="2"/>
+                            </svg>
+                            Priority Contacts
+                          </h4>
+                          {message.networkData.contacts.map((contact, idx) => (
+                            <div key={idx} className={`text-xs mb-3 p-3 rounded-lg border ${
+                              message.type === 'user' 
+                                ? 'bg-white/10 border-white/20' 
+                                : 'bg-slate-50 border-slate-200'
+                            }`}>
+                              <div className="font-semibold mb-1">{contact.name}</div>
+                              <div className={`text-xs mb-1 ${message.type === 'user' ? 'text-white/80' : 'text-slate-600'}`}>
+                                {contact.connection} • Last contact: {contact.lastContact}
+                              </div>
+                              <div className={`text-xs font-medium ${
+                                message.type === 'user' ? 'text-blue-200' : 'text-blue-600'
+                              }`}>
+                                {contact.relevance}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {message.networkData.events.length > 0 && (
+                          <div className={`p-4 rounded-lg border ${
+                            message.type === 'user' 
+                              ? 'bg-white/10 border-white/20' 
+                              : 'bg-white border-slate-200'
+                          }`}>
+                            <h4 className={`font-semibold text-sm mb-3 flex items-center ${
+                              message.type === 'user' ? 'text-white' : 'text-slate-800'
+                            }`}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mr-2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2"/>
+                                <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2"/>
+                                <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
+                              </svg>
+                              Strategic Events
+                            </h4>
+                            {message.networkData.events.map((event, idx) => (
+                              <div key={idx} className={`text-xs mb-3 p-3 rounded-lg border ${
+                                message.type === 'user' 
+                                  ? 'bg-white/10 border-white/20' 
+                                  : 'bg-slate-50 border-slate-200'
+                              }`}>
+                                <div className="font-semibold mb-1">{event.name}</div>
+                                <div className={`text-xs mb-1 ${message.type === 'user' ? 'text-white/80' : 'text-slate-600'}`}>
+                                  {event.date} • {event.attendees} attendees
+                                </div>
+                                <div className={`text-xs font-medium ${
+                                  message.type === 'user' ? 'text-blue-200' : 'text-blue-600'
+                                }`}>
+                                  {event.relevance}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Schedule Data Display */}
+                    {message.scheduleData && message.content && !isTypewriting && (
+                      <div className="mt-4 space-y-3">
+                        <div className="bg-white/10 p-3 rounded">
+                          <h4 className="font-semibold text-sm mb-2">📅 Upcoming Schedule</h4>
+                          {message.scheduleData.upcoming.map((item, idx) => (
+                            <div key={idx} className="text-xs mb-2 p-2 bg-white/10 rounded">
+                              <div className="font-semibold">{item.title}</div>
+                              <div className="opacity-80">{item.date} • {item.type}</div>
+                              <div className="text-blue-300 text-xs">{item.description}</div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="bg-white/10 p-3 rounded">
+                          <h4 className="font-semibold text-sm mb-2">💡 AI Suggestions</h4>
+                          {message.scheduleData.suggestions.map((suggestion, idx) => (
+                            <div key={idx} className="text-xs mb-2 p-2 bg-white/10 rounded">
+                              <div className="font-semibold">{suggestion.action}</div>
+                              <div className={`text-xs ${suggestion.priority === 'High' ? 'text-red-300' : 'text-yellow-300'}`}>
+                                {suggestion.priority} Priority
+                              </div>
+                              <div className="text-blue-300 text-xs">{suggestion.description}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              
+              {/* Professional Typing Indicator */}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-slate-50 border border-slate-200 text-slate-600 p-4 rounded-lg ai-glow-subtle">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center animate-neural-pulse">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-white">
+                          <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+                        </svg>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-medium">AI analyzing</span>
+                        <div className="flex space-x-1">
+                          <div className="w-1 h-1 bg-slate-400 rounded-full animate-thinking-dots"></div>
+                          <div className="w-1 h-1 bg-slate-400 rounded-full animate-thinking-dots" style={{animationDelay: '0.2s'}}></div>
+                          <div className="w-1 h-1 bg-slate-400 rounded-full animate-thinking-dots" style={{animationDelay: '0.4s'}}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+            
+            {/* Professional Input */}
+            <div className="border-t border-slate-200 bg-slate-50 p-4">
+              <div className="flex space-x-3">
+                <Input
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Enter your strategic objectives or executive directives..."
+                  className="flex-1 border-slate-300 focus:border-blue-500 bg-white"
+                  onKeyPress={(e) => e.key === 'Enter' && !isProcessing && handleSendMessage()}
+                  disabled={isTyping || isProcessing}
+                />
+                <Button 
+                  onClick={() => handleSendMessage()}
+                  disabled={!inputMessage.trim() || isTyping || isProcessing}
+                  className="bg-blue-600 hover:bg-blue-700 px-6 ai-glow-subtle disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mr-2">
+                    <line x1="22" y1="2" x2="11" y2="13" stroke="currentColor" strokeWidth="2"/>
+                    <polygon points="22,2 15,22 11,13 2,9" stroke="currentColor" strokeWidth="2" fill="currentColor"/>
+                  </svg>
+                  {isProcessing ? 'Processing...' : 'Execute'}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Professional Side Panel */}
+        <div className="space-y-6">
+          {/* Strategic Actions */}
+          <Card className="ai-border">
+            <CardHeader className="bg-slate-50 border-b border-slate-200">
+              <CardTitle className="text-lg flex items-center gap-3 text-slate-800">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                    <polygon points="13,2 3,14 12,14 11,22 21,10 12,10" stroke="currentColor" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
+                Executive Commands
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 p-4">
+              <Button 
+                variant="outline" 
+                disabled={isProcessing}
+                className={`w-full justify-start transition-all duration-200 ${
+                  isProcessing 
+                    ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed' 
+                    : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50'
+                }`}
+                onClick={() => handleSendMessage("I'm traveling to San Francisco next week")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mr-3">
+                  <path d="M21 10C21 17 12 23 12 23S3 17 3 10A9 9 0 0 1 21 10Z" stroke="currentColor" strokeWidth="2"/>
+                  <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                SF Trip Strategy
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={isProcessing}
+                className={`w-full justify-start transition-all duration-200 ${
+                  isProcessing 
+                    ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed' 
+                    : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50'
+                }`}
+                onClick={() => handleSendMessage("Help me prepare for the Primary VC event")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mr-3">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                  <polygon points="10,8 16,12 10,16" stroke="currentColor" strokeWidth="2" fill="currentColor"/>
+                </svg>
+                VC Event Prep
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={isProcessing}
+                className={`w-full justify-start transition-all duration-200 ${
+                  isProcessing 
+                    ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed' 
+                    : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50'
+                }`}
+                onClick={() => handleSendMessage("Draft strategic communications for my network")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mr-3">
+                  <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" strokeWidth="2"/>
+                  <polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                Outreach Campaign
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={isProcessing}
+                className={`w-full justify-start transition-all duration-200 ${
+                  isProcessing 
+                    ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed' 
+                    : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50'
+                }`}
+                onClick={() => handleSendMessage("Show me my schedule optimization")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mr-3">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                Schedule Analysis
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Network Intelligence */}
+          <Card className="ai-border">
+            <CardHeader className="bg-slate-50 border-b border-slate-200">
+              <CardTitle className="text-lg flex items-center gap-3 text-slate-800">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                </div>
+                Executive Intelligence
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 p-4">
+              <div className="text-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600 mb-1">847</div>
+                <div className="text-sm text-slate-600 font-medium">Active Connections</div>
+                <div className="text-xs text-slate-500 mt-1">LinkedIn Network</div>
+              </div>
+              <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="text-2xl font-bold text-green-600 mb-1">124</div>
+                <div className="text-sm text-slate-600 font-medium">Investor Relations</div>
+                <div className="text-xs text-slate-500 mt-1">Verified Contacts</div>
+              </div>
+              <div className="text-center p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600 mb-1">23</div>
+                <div className="text-sm text-slate-600 font-medium">Strategic Events</div>
+                <div className="text-xs text-slate-500 mt-1">Next 30 Days</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Activity Monitor */}
+          <Card className="ai-border">
+            <CardHeader className="bg-slate-50 border-b border-slate-200">
+              <CardTitle className="text-lg flex items-center gap-3 text-slate-800">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                    <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                </div>
+                Executive Dashboard
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 p-4">
+              <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-white">
+                    <polyline points="20,6 9,17 4,12" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-slate-800">Email Sent</div>
+                  <div className="text-xs text-slate-600">Sarah Chen • Kleiner Perkins</div>
+                </div>
+                <div className="text-xs text-slate-500">2h</div>
+              </div>
+              
+              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-white">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-slate-800">Meeting Scheduled</div>
+                  <div className="text-xs text-slate-600">Alex Kim • Coffee Meeting</div>
+                </div>
+                <div className="text-xs text-slate-500">4h</div>
+              </div>
+              
+              <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-white">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                    <polygon points="10,8 16,12 10,16" fill="currentColor"/>
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-slate-800">Event Preparation</div>
+                  <div className="text-xs text-slate-600">Primary VC Demo Day</div>
+                </div>
+                <div className="text-xs text-slate-500">6h</div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Professional Email Draft Modal */}
+      <Dialog open={showEmailDraft} onOpenChange={setShowEmailDraft}>
+        <DialogContent className="bg-white border-slate-200 max-w-4xl max-h-[80vh] ai-border">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-slate-800 flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                  <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" strokeWidth="2"/>
+                  <polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+              </div>
+              AI-Generated Strategic Outreach
+            </DialogTitle>
+            <DialogDescription className="text-slate-600">
+              Review and customize your professional communication before deployment
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto max-h-[50vh] pr-2">
+            {emailDraftData && (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="email-recipient" className="text-sm font-medium text-slate-700">
+                    To:
+                  </Label>
+                  <Input
+                    id="email-recipient"
+                    value={emailDraftData.recipient}
+                    onChange={(e) => setEmailDraftData({
+                      ...emailDraftData,
+                      recipient: e.target.value
+                    })}
+                    className="mt-1 border-slate-300 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="email-subject" className="text-sm font-medium text-slate-700">
+                    Subject:
+                  </Label>
+                  <Input
+                    id="email-subject"
+                    value={emailDraftData.subject}
+                    onChange={(e) => setEmailDraftData({
+                      ...emailDraftData,
+                      subject: e.target.value
+                    })}
+                    className="mt-1 border-slate-300 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="email-content" className="text-sm font-medium text-slate-700">
+                    Message:
+                  </Label>
+                  <Textarea
+                    id="email-content"
+                    value={emailDraftData.content}
+                    onChange={(e) => setEmailDraftData({
+                      ...emailDraftData,
+                      content: e.target.value
+                    })}
+                    rows={16}
+                    className="mt-1 font-mono text-sm border-slate-300 focus:border-blue-500 resize-none"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+                      <path d="M12 1V23" stroke="currentColor" strokeWidth="1" opacity="0.5"/>
+                      <path d="M1 12H23" stroke="currentColor" strokeWidth="1" opacity="0.5"/>
+                    </svg>
+                  </div>
+                  <div className="text-sm">
+                    <div className="font-semibold text-blue-800">AI Optimization Active</div>
+                    <div className="text-blue-700">
+                      Content optimized based on relationship context and strategic objectives
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowEmailDraft(false)}
+              className="border-slate-300 text-slate-700 hover:bg-slate-50"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mr-2">
+                <path d="M19 21H5A2 2 0 0 1 3 19V5A2 2 0 0 1 5 3H11L19 11V19A2 2 0 0 1 19 21Z" stroke="currentColor" strokeWidth="2"/>
+                <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" strokeWidth="2"/>
+                <polyline points="7,3 7,8 15,8" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              Save Draft
+            </Button>
+            <Button 
+              onClick={() => {
+                // Simulate sending email
+                alert('Email deployed successfully! Professional outreach completed.')
+                setShowEmailDraft(false)
+                
+                // Add to recent activity
+                const newMessage = {
+                  id: Date.now().toString(),
+                  type: 'assistant' as const,
+                  content: `Strategic outreach completed to ${emailDraftData?.recipient}. Email delivery confirmed and activity logged in your executive intelligence system.`,
+                  timestamp: new Date()
+                }
+                setMessages(prev => [...prev, newMessage])
+                
+                // Scroll to show the confirmation message
+                setTimeout(() => {
+                  scrollToBottom()
+                }, 200)
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white ai-glow-subtle"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mr-2">
+                <line x1="22" y1="2" x2="11" y2="13" stroke="currentColor" strokeWidth="2"/>
+                <polygon points="22,2 15,22 11,13 2,9" stroke="currentColor" strokeWidth="2" fill="currentColor"/>
+              </svg>
+              Deploy Message
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }

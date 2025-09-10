@@ -169,3 +169,171 @@ button:disabled,
 .scrollbar-hide::-webkit-scrollbar { 
   display: none;  /* Safari and Chrome */
 }
+
+/* Professional AI Agent Animations */
+@keyframes subtle-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes typewriter-cursor {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes neural-pulse {
+  0%, 100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes data-flow {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes thinking-dots {
+  0%, 20% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes status-indicator {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-subtle-fade-in {
+  animation: subtle-fade-in 0.8s ease-out;
+}
+
+.animate-neural-pulse {
+  animation: neural-pulse 4s ease-in-out infinite;
+}
+
+.animate-data-flow {
+  animation: data-flow 3s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  background: linear-gradient(-45deg, #1e293b, #334155, #475569, #64748b);
+  background-size: 400% 400%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+.animate-thinking-dots {
+  animation: thinking-dots 1.4s ease-in-out infinite;
+}
+
+.animate-status-indicator {
+  animation: status-indicator 2s ease-in-out infinite;
+}
+
+.typewriter-cursor::after {
+  content: '|';
+  animation: typewriter-cursor 1s infinite;
+  color: #3b82f6;
+}
+
+/* Professional AI Theme */
+.ai-border {
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.1);
+}
+
+.ai-glow-subtle {
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
+}
+
+.neural-pattern {
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+}
+
+.data-stream {
+  position: relative;
+  overflow: hidden;
+}
+
+.data-stream::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), transparent);
+  animation: data-flow 3s ease-in-out infinite;
+}
+
+/* Responsive animations - reduce motion on mobile */
+@media (max-width: 768px) {
+  .animate-bounce,
+  .animate-pulse,
+  .animate-ping {
+    animation-duration: 1.5s;
+  }
+}
+
+/* Enhanced mobile responsiveness */
+@media (max-width: 640px) {
+  .xl\:col-span-2 {
+    grid-column: span 1;
+  }
+  
+  .grid-cols-1.xl\:grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ultra smooth transitions */
+* {
+  transition: all 0.2s ease-in-out;
+}
