@@ -28,7 +28,7 @@ interface QueryInterfaceProps {
 
 interface RecommendationResult {
   id: string
-  data: Record<string, any>
+  data: Record<string, unknown>
   match_score: number
   match_reasons: string[]
 }
@@ -36,7 +36,7 @@ interface RecommendationResult {
 interface QueryResponse {
   success: boolean
   query: string
-  criteria_used: any
+  criteria_used: Record<string, unknown>
   recommendations: RecommendationResult[]
   metadata: {
     total_found: number
@@ -54,7 +54,7 @@ export function ProductionQueryInterface({
   const [isSearching, setIsSearching] = useState(false)
   const [results, setResults] = useState<RecommendationResult[]>([])
   const [lastQuery, setLastQuery] = useState('')
-  const [metadata, setMetadata] = useState<any>(null)
+  const [metadata, setMetadata] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Query history management
@@ -63,7 +63,7 @@ export function ProductionQueryInterface({
     datasetId: string
     datasetName: string
     results: RecommendationResult[]
-    metadata: any
+    metadata: Record<string, unknown>
     timestamp: string
   }) => {
     const history = JSON.parse(localStorage.getItem('query-history') || '[]')
@@ -126,9 +126,9 @@ export function ProductionQueryInterface({
         throw new Error(data.error || 'Unknown error occurred')
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Search error:', err)
-      setError(err.message || 'Failed to get recommendations. Please try again.')
+      setError(err instanceof Error ? err.message : 'Failed to get recommendations. Please try again.')
     } finally {
       setIsSearching(false)
     }
@@ -141,7 +141,7 @@ export function ProductionQueryInterface({
     }
   }
 
-  const getFieldValue = (person: Record<string, any>, fieldPattern: string[]) => {
+  const getFieldValue = (person: Record<string, unknown>, fieldPattern: string[]) => {
     const field = Object.keys(person).find(key => 
       fieldPattern.some(pattern => key.toLowerCase().includes(pattern.toLowerCase()))
     )

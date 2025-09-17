@@ -20,13 +20,14 @@ interface SelectedDataset {
   uploadedAt: string
   fileSize: number
   status: 'uploaded' | 'processing' | 'completed' | 'failed' | 'error' | 'processed'
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export default function RecommendationsDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('upload')
   const [selectedDataset, setSelectedDataset] = useState<SelectedDataset | null>(null)
-  const [selectedDatasetSchema, setSelectedDatasetSchema] = useState<DatasetSchema | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [selectedDatasetSchema, _setSelectedDatasetSchema] = useState<DatasetSchema | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [user, setUser] = useState<{ username: string; loginTime: string } | null>(null)

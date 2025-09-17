@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateClarifyingQuestions, refineResultsWithLLM } from '@/lib/langchain'
 
-export async function GET(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function GET(_req: NextRequest) {
   try {
     console.log('🧪 Testing GPT-5 LangChain integration...')
     
@@ -76,15 +77,15 @@ export async function GET(req: NextRequest) {
       timestamp: new Date().toISOString()
     })
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ GPT-5 LangChain test error:', error)
     
     return NextResponse.json({
       success: false,
       gpt5_working: false,
-      error: error.message,
-      error_type: error.type || 'unknown',
-      error_code: error.code || 'unknown',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      error_type: (error as Record<string, unknown>)?.type || 'unknown',
+      error_code: (error as Record<string, unknown>)?.code || 'unknown',
       timestamp: new Date().toISOString()
     }, { 
       status: 500
@@ -116,10 +117,10 @@ export async function POST(req: NextRequest) {
     
     return NextResponse.json({ error: 'Invalid test_type' }, { status: 400 })
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }

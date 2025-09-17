@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -13,7 +12,6 @@ import {
   Brain,
   Sparkles,
   Cloud,
-  Database,
   AlertCircle,
   CheckCircle
 } from 'lucide-react'
@@ -23,10 +21,19 @@ interface AIQueryInterfaceProps {
   onBackToDatasets: () => void
 }
 
+interface RecommendationPerson {
+  id: string
+  name: string
+  title: string
+  company: string
+  match_score: number
+  match_reasons: string[]
+}
+
 export function AIQueryInterface({ selectedDatasetId, onBackToDatasets }: AIQueryInterfaceProps) {
   const [query, setQuery] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [results, setResults] = useState<any>(null)
+  const [results, setResults] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleQuery = async () => {
@@ -142,7 +149,7 @@ export function AIQueryInterface({ selectedDatasetId, onBackToDatasets }: AIQuer
             <span>Natural Language Query</span>
           </CardTitle>
           <CardDescription>
-            Describe who you're looking for in natural language. Our AI will understand and find relevant matches.
+            Describe who you&apos;re looking for in natural language. Our AI will understand and find relevant matches.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -152,7 +159,7 @@ export function AIQueryInterface({ selectedDatasetId, onBackToDatasets }: AIQuer
               id="query"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g., 'Find healthcare founders with AI experience who have raised Series A' or 'Show me the coolest people with investments in energy'"
+              placeholder="e.g., &apos;Find healthcare founders with AI experience who have raised Series A&apos; or &apos;Show me the coolest people with investments in energy&apos;"
               className="min-h-[100px]"
               disabled={isProcessing}
             />
@@ -161,10 +168,10 @@ export function AIQueryInterface({ selectedDatasetId, onBackToDatasets }: AIQuer
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="font-medium text-blue-900 mb-2">Example queries:</h4>
             <ul className="text-sm text-blue-700 space-y-1">
-              <li>• "AI founder raising seed round looking for healthcare investors"</li>
-              <li>• "10 of the coolest people with investments in energy"</li>
-              <li>• "Senior engineers with fintech experience in San Francisco"</li>
-              <li>• "Female founders in biotech who have raised Series A"</li>
+              <li>• &quot;AI founder raising seed round looking for healthcare investors&quot;</li>
+              <li>• &quot;10 of the coolest people with investments in energy&quot;</li>
+              <li>• &quot;Senior engineers with fintech experience in San Francisco&quot;</li>
+              <li>• &quot;Female founders in biotech who have raised Series A&quot;</li>
             </ul>
           </div>
 
@@ -232,7 +239,7 @@ export function AIQueryInterface({ selectedDatasetId, onBackToDatasets }: AIQuer
               {/* Recommendations */}
               <div className="space-y-4">
                 <h4 className="font-medium text-gray-900">Top Recommendations:</h4>
-                {results.recommendations.map((person: any, index: number) => (
+                {(results.recommendations as RecommendationPerson[]).map((person: RecommendationPerson, index: number) => (
                   <div key={person.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">

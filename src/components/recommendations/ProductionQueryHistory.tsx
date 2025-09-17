@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   History, 
   Search, 
@@ -37,7 +37,7 @@ interface QueryHistoryEntry {
   datasetName: string
   results?: Array<{
     id: string
-    data: Record<string, any>
+    data: Record<string, unknown>
     match_score: number
     match_reasons: string[]
   }>
@@ -74,16 +74,16 @@ export function ProductionQueryHistory({
       if (response.ok) {
         const data = await response.json()
         // Transform database format to component format
-        const transformedQueries = data.queries.map((query: any) => ({
-          id: query.id,
-          query: query.query,
-          datasetId: query.dataset_id,
-          datasetName: query.dataset_name,
-          results: query.results || [],
-          metadata: query.metadata || { total_found: 0, processing_time: 0 },
-          timestamp: query.created_at,
-          status: query.status,
-          processingStages: query.processing_stages || []
+        const transformedQueries = data.queries.map((query: Record<string, unknown>) => ({
+          id: query.id as string,
+          query: query.query as string,
+          datasetId: query.dataset_id as string,
+          datasetName: query.dataset_name as string,
+          results: (query.results as Array<{id: string, data: Record<string, unknown>, match_score: number, match_reasons: string[]}>) || [],
+          metadata: (query.metadata as {total_found?: number, processing_time?: number, error?: string}) || { total_found: 0, processing_time: 0 },
+          timestamp: query.created_at as string,
+          status: query.status as 'processing' | 'completed' | 'error',
+          processingStages: (query.processing_stages as ProcessingStage[]) || []
         }))
         setHistory(transformedQueries)
       } else {
@@ -204,7 +204,7 @@ export function ProductionQueryHistory({
   const renderProcessingStages = (stages: ProcessingStage[]) => {
     return (
       <div className="space-y-3">
-        {stages.map((stage, index) => (
+        {stages.map((stage) => (
           <div key={stage.stage} className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -344,7 +344,7 @@ export function ProductionQueryHistory({
                       ) : (
                         <Search className="h-4 w-4 text-purple-600" />
                       )}
-                      <span className="font-medium text-lg">"{entry.query}"</span>
+                      <span className="font-medium text-lg">&quot;{entry.query}&quot;</span>
                       
                       {isProcessing && (
                         <Badge variant="outline" className="text-blue-600 border-blue-600">

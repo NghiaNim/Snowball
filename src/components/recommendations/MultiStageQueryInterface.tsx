@@ -62,7 +62,7 @@ interface ProcessingStage {
 
 interface EnhancedResult {
   id: string
-  data: Record<string, any>
+  data: Record<string, unknown>
   bm25_score: number
   llm_relevance_score: number
   overall_score: number
@@ -496,9 +496,9 @@ export function MultiStageQueryInterface({
         throw new Error(data.error || 'Failed to generate follow-up questions')
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Error getting follow-up questions:', err)
-      setError(err.message || 'Failed to generate follow-up questions')
+      setError(err instanceof Error ? err.message : 'Failed to generate follow-up questions')
     } finally {
       setProcessing(false)
     }
@@ -630,7 +630,7 @@ export function MultiStageQueryInterface({
     setAnswers(prev => ({ ...prev, [`${questionId}_other_text`]: text }))
   }
 
-  const getFieldValue = (person: Record<string, any>, fieldPattern: string[]) => {
+  const getFieldValue = (person: Record<string, unknown>, fieldPattern: string[]) => {
     const field = Object.keys(person).find(key => 
       fieldPattern.some(pattern => key.toLowerCase().includes(pattern.toLowerCase()))
     )
@@ -656,7 +656,7 @@ export function MultiStageQueryInterface({
             AI-Powered Search
           </h2>
           <p className="text-gray-500 text-sm mt-1">
-            Find exactly who you're looking for with intelligent assistance
+            Find exactly who you&apos;re looking for with intelligent assistance
           </p>
         </div>
         <Button variant="ghost" onClick={onBackToDatasets} className="text-gray-600 hover:text-gray-900">
@@ -712,7 +712,7 @@ export function MultiStageQueryInterface({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Previous search restored</p>
-                    <p className="text-sm">Your query "{query}" was saved. Click "Start AI Search" to continue.</p>
+                    <p className="text-sm">Your query &quot;{query}&quot; was saved. Click &quot;Start AI Search&quot; to continue.</p>
                   </div>
                   <Button 
                     variant="outline" 
@@ -789,10 +789,10 @@ export function MultiStageQueryInterface({
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <MessageSquare className="h-6 w-6 text-blue-600" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Let's get more specific</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Let&apos;s get more specific</h3>
             <div className="bg-blue-50 rounded-lg p-3 max-w-md mx-auto">
               <p className="text-sm text-blue-900 font-medium">Searching for:</p>
-              <p className="text-blue-800 italic">"{query}"</p>
+              <p className="text-blue-800 italic">&quot;{query}&quot;</p>
             </div>
           </div>
 
@@ -913,7 +913,7 @@ export function MultiStageQueryInterface({
           </div>
 
           <div className="max-w-lg mx-auto space-y-4">
-            {processingStages.map((stage, index) => (
+            {processingStages.map((stage) => (
               <div key={stage.stage} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
                 {stage.completed ? (
                   <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
@@ -949,7 +949,7 @@ export function MultiStageQueryInterface({
                 </span>
               </div>
               <p className="text-xs text-blue-600">
-                Quality takes time - we're analyzing each profile for the best matches
+                Quality takes time - we&apos;re analyzing each profile for the best matches
               </p>
               {pollingStartTime && Date.now() - pollingStartTime > 2 * 60 * 1000 && (
                 <p className="text-xs text-orange-600 mt-1">

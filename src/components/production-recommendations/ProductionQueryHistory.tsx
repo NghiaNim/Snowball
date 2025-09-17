@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   History, 
   Search, 
@@ -26,7 +25,7 @@ interface QueryHistoryEntry {
   datasetName: string
   results: Array<{
     id: string
-    data: Record<string, any>
+    data: Record<string, unknown>
     match_score: number
     match_reasons: string[]
   }>
@@ -177,7 +176,7 @@ export function ProductionQueryHistory({ onRerunQuery }: QueryHistoryProps) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <Search className="h-4 w-4 text-purple-600" />
-                      <span className="font-medium text-lg">"{entry.query}"</span>
+                      <span className="font-medium text-lg">&quot;{entry.query}&quot;</span>
                     </div>
                     
                     <div className="flex items-center gap-4 text-sm text-gray-600">

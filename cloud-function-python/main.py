@@ -254,27 +254,47 @@ def execute_search_pipeline(
         
         raise error
 
+def get_api_base_url() -> str:
+    """Get the appropriate API base URL for the current environment"""
+    cf_runtime_url = os.environ.get('CF_RUNTIME_URL', 'Not Set')
+    function_name = os.environ.get('X_GOOGLE_FUNCTION_NAME', 'Not Set')
+    k_service = os.environ.get('K_SERVICE', 'Not Set')
+    
+    print(f"🔍 Environment variables:")
+    print(f"  CF_RUNTIME_URL: {cf_runtime_url}")
+    print(f"  X_GOOGLE_FUNCTION_NAME: {function_name}")
+    print(f"  K_SERVICE: {k_service}")
+    
+    # Check for local development environment
+    api_base_url = os.environ.get('API_BASE_URL')
+    local_dev = os.environ.get('LOCAL_DEVELOPMENT', 'false').lower() == 'true'
+    
+    if api_base_url:
+        base_url = api_base_url
+        print(f"🔍 Using custom API_BASE_URL: {base_url}")
+    elif local_dev:
+        base_url = 'http://localhost:3000'  # Explicit local development flag
+        print(f"🔍 LOCAL_DEVELOPMENT=true, using: {base_url}")
+    elif (cf_runtime_url == 'Not Set' or 
+          'localhost' in cf_runtime_url or 
+          'functions-framework' in function_name):
+        base_url = 'http://localhost:3000'  # Local development detection
+        print(f"🔍 Detected local development, using: {base_url}")
+    else:
+        # For production Cloud Functions, force localhost during development
+        # This is a temporary override - set LOCAL_DEVELOPMENT=true to use localhost
+        base_url = 'http://localhost:3000'  # FORCE LOCAL FOR DEVELOPMENT
+        print(f"🔍 FORCED LOCAL DEVELOPMENT MODE: {base_url}")
+        print(f"🔍 Set LOCAL_DEVELOPMENT=false to use production URLs")
+        
+    return base_url
+
 def update_query_progress(query_id: str, stage: str, message: str, progress: int, completed: bool):
     """Update query progress in database"""
     try:
         import requests
         
-        # Determine the base URL dynamically
-        cf_runtime_url = os.environ.get('CF_RUNTIME_URL', 'Not Set')
-        print(f"🔍 CF_RUNTIME_URL environment variable: {cf_runtime_url}")
-        
-        # Check for local development environment
-        api_base_url = os.environ.get('API_BASE_URL')
-        if api_base_url:
-            base_url = api_base_url
-            print(f"🔍 Using custom API_BASE_URL: {base_url}")
-        elif 'localhost' in cf_runtime_url or 'functions-framework' in str(os.environ.get('X_GOOGLE_FUNCTION_NAME', '')):
-            base_url = 'http://localhost:3002'  # Local development
-            print(f"🔍 Detected local development, using: {base_url}")
-        else:
-            base_url = 'https://snowball-471001.vercel.app'  # Production
-            print(f"🔍 Using production URL: {base_url}")
-        
+        base_url = get_api_base_url()
         api_url = f"{base_url}/api/recommendations/query-history"
         
         update_data = {
@@ -314,6 +334,42 @@ def update_query_progress(query_id: str, stage: str, message: str, progress: int
                 print(f"📄 Error response: {json.dumps(error_data, indent=2)}")
             except:
                 print("📄 Could not parse error response as JSON")
+            
+            # If progress update fails, try to mark query as error so frontend stops polling
+            if response.status_code in [404, 500]:
+                print(f"🔄 Progress update failed, attempting to mark query as error...")
+                try:
+                    error_update_data = {
+                        'queryId': query_id,
+                        'status': 'error',
+                        'metadata': {
+                            'current_stage': 'error',
+                            'stage_message': f'API update failed: {response.status_code}',
+                            'progress': 0,
+                            'last_update': datetime.now().isoformat(),
+                            'api_error': response.text
+                        }
+                    }
+                    
+                    # Try one more time with error status
+                    error_response = requests.put(
+                        api_url,
+                        json=error_update_data,
+                        headers={
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'SnowballCloudFunction/1.0',
+                            'Accept': 'application/json'
+                        },
+                        timeout=5
+                    )
+                    
+                    if error_response.status_code == 200:
+                        print(f"✅ Successfully marked query as error")
+                    else:
+                        print(f"❌ Failed to mark query as error: {error_response.status_code}")
+                        
+                except Exception as e:
+                    print(f"❌ Failed to send error status: {str(e)}")
         else:
             print(f"✅ Progress update successful")
             
@@ -321,6 +377,44 @@ def update_query_progress(query_id: str, stage: str, message: str, progress: int
         print(f"⚠️  Progress update error: {str(error)}")
         import traceback
         print(f"🔍 Full traceback: {traceback.format_exc()}")
+        
+        # If even the API call failed, try to mark query as error
+        try:
+            print(f"🔄 API call failed, attempting to mark query as error...")
+            error_update_data = {
+                'queryId': query_id,
+                'status': 'error',
+                'metadata': {
+                    'current_stage': 'error',
+                    'stage_message': f'API call failed: {str(error)}',
+                    'progress': 0,
+                    'last_update': datetime.now().isoformat(),
+                    'exception': str(error)
+                }
+            }
+            
+            # Try to get base URL again and make one final attempt
+            base_url = get_api_base_url()
+            api_url = f"{base_url}/api/recommendations/query-history"
+            
+            error_response = requests.put(
+                api_url,
+                json=error_update_data,
+                headers={
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'SnowballCloudFunction/1.0',
+                    'Accept': 'application/json'
+                },
+                timeout=5
+            )
+            
+            if error_response.status_code == 200:
+                print(f"✅ Successfully marked query as error after exception")
+            else:
+                print(f"❌ Failed to mark query as error after exception: {error_response.status_code}")
+                
+        except Exception as final_error:
+            print(f"❌ Final error attempt failed: {str(final_error)}")
 
 def store_results(result_id: str, results: Dict[str, Any]) -> None:
     """Store results for later retrieval (simple in-memory storage)"""
@@ -334,14 +428,9 @@ def get_stored_results(result_id: str) -> Optional[Dict[str, Any]]:
 def update_query_in_database(query_id: str, results: Dict[str, Any]) -> None:
     """Update query status and results in the database"""
     try:
-        # Determine the base URL dynamically
-        # In Cloud Functions, we can use the CF_RUNTIME_URL environment variable
-        # or construct it from known project info
-        base_url = os.environ.get('CF_RUNTIME_URL', 'https://snowball-471001.vercel.app')
-        if 'cloudfunctions.net' in base_url:
-            # If running in cloud function, use the Vercel URL for the API
-            base_url = 'https://snowball-471001.vercel.app'
+        import requests
         
+        base_url = get_api_base_url()
         api_url = f"{base_url}/api/recommendations/query-history"
         
         # Prepare the update payload  
@@ -364,19 +453,37 @@ def update_query_in_database(query_id: str, results: Dict[str, Any]) -> None:
                 }
             }
         
+        print(f"🔄 Attempting database update to: {api_url}")
+        print(f"📝 Update data: {json.dumps(update_data, indent=2)}")
+        
         # Make the API call to update the database
         response = requests.put(
             api_url,
             json=update_data,
-            headers={'Content-Type': 'application/json'},
+            headers={
+                'Content-Type': 'application/json',
+                'User-Agent': 'SnowballCloudFunction/1.0',
+                'Accept': 'application/json'
+            },
             timeout=10  # 10 second timeout
         )
+        
+        print(f"📡 Response status: {response.status_code}")
+        print(f"📡 Response headers: {dict(response.headers)}")
         
         if response.status_code == 200:
             print(f"✅ Successfully updated query {query_id} in database")
         else:
             print(f"⚠️ Failed to update database: {response.status_code} - {response.text}")
+            # Try to parse error response
+            try:
+                error_data = response.json()
+                print(f"📄 Error response: {json.dumps(error_data, indent=2)}")
+            except:
+                print("📄 Could not parse error response as JSON")
             
     except Exception as error:
         print(f"❌ Database update error: {str(error)}")
+        import traceback
+        print(f"🔍 Full traceback: {traceback.format_exc()}")
         # Don't re-raise - we don't want to fail the whole function for database issues

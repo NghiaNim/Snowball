@@ -99,7 +99,7 @@ export function RecommendationUploadInterface({ onUploadSuccess }: Recommendatio
       // Auto-generate dataset name from filename
       const name = file.name.replace(/\.(csv|xlsx?|xls)$/i, '').replace(/[_-]/g, ' ')
       setDatasetName(name.charAt(0).toUpperCase() + name.slice(1))
-    } catch (parseError) {
+    } catch {
       setError('Failed to parse file. Please check the file format.')
     }
   }, [parseFilePreview])

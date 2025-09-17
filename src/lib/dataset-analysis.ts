@@ -9,7 +9,7 @@ export interface DatasetField {
 export interface DatasetSchema {
   fields: DatasetField[]
   totalRows: number
-  sampleData: Record<string, any>[]
+  sampleData: Record<string, unknown>[]
 }
 
 /**
@@ -109,7 +109,7 @@ function analyzeData(data: string[][]): DatasetSchema {
   
   // Get sample data (first 3 rows)
   const sampleData = rows.slice(0, 3).map(row => {
-    const obj: Record<string, any> = {}
+    const obj: Record<string, unknown> = {}
     headers.forEach((header, index) => {
       obj[header.trim()] = row[index] || ''
     })
@@ -161,7 +161,7 @@ function inferColumnType(values: string[]): 'string' | 'number' | 'boolean' | 'd
 /**
  * Convert schema to a format suitable for the Cloud Function
  */
-export function formatSchemaForAI(schema: DatasetSchema): any {
+export function formatSchemaForAI(schema: DatasetSchema): Record<string, unknown> {
   return {
     fields: schema.fields.map(field => ({
       name: field.name,

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 
 // Create service role client that bypasses RLS for demo system

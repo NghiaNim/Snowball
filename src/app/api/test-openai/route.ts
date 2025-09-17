@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
 // Test OpenAI API directly without LangChain
-export async function GET(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function GET(_req: NextRequest) {
   try {
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
@@ -46,18 +47,18 @@ export async function GET(req: NextRequest) {
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('OpenAI API Error:', error)
     
     return NextResponse.json({
       success: false,
-      error: error.message,
-      error_type: error.type || 'unknown',
-      error_code: error.code || 'unknown',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      error_type: (error as Record<string, unknown>)?.type || 'unknown',
+      error_code: (error as Record<string, unknown>)?.code || 'unknown',
       api_key_prefix: process.env.OPENAI_API_KEY?.substring(0, 10) + '...' || 'not found',
       timestamp: new Date().toISOString()
     }, { 
-      status: error.status || 500 
+      status: (error as Record<string, unknown>)?.status as number || 500 
     })
   }
 }
@@ -112,16 +113,16 @@ export async function POST(req: NextRequest) {
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Model test error:', error)
     
     return NextResponse.json({
       success: false,
-      error: error.message,
-      error_type: error.type,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      error_type: (error as Record<string, unknown>)?.type || 'unknown',
       timestamp: new Date().toISOString()
     }, { 
-      status: error.status || 500 
+      status: (error as Record<string, unknown>)?.status as number || 500 
     })
   }
 }
