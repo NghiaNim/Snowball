@@ -3,6 +3,7 @@ import { ZodError } from 'zod'
 import superjson from 'superjson'
 import { createClient } from '@/lib/supabase/server'
 import type { User } from '@/types/database'
+import { headers } from 'next/headers'
 
 /**
  * 1. CONTEXT
@@ -11,6 +12,7 @@ import type { User } from '@/types/database'
  */
 export const createTRPCContext = async () => {
   const supabase = await createClient()
+  const headersList = await headers()
   
   // Get the current user from Supabase Auth
   const { data: { user: authUser }, error } = await supabase.auth.getUser()
@@ -18,19 +20,33 @@ export const createTRPCContext = async () => {
   let user: User | null = null
   
   if (authUser && !error) {
-    // Get the user profile from our investors table
-    const { data: userProfile } = await supabase
+    // Try to get investor profile first
+    const { data: investorProfile } = await supabase
       .from('investors')
       .select('*')
       .eq('user_id', authUser.id)
       .single()
     
-    user = userProfile
+    if (investorProfile) {
+      user = investorProfile
+    } else {
+      // Try to get founder profile
+      const { data: founderProfile } = await supabase
+        .from('founders')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .single()
+      
+      if (founderProfile) {
+        user = founderProfile as User // Type assertion for compatibility
+      }
+    }
   }
 
   return {
     supabase,
     user,
+    headers: headersList,
   }
 }
 
@@ -86,4 +102,44 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
       user: ctx.user,
     },
   })
+})
+
+/**
+ * Flexible auth procedure that handles both Supabase and founder demo auth
+ */
+export const flexibleAuthProcedure = t.procedure.use(async ({ ctx, next, rawInput }) => {
+  // If we have a Supabase authenticated user, use that
+  if (ctx.user) {
+    return next({
+      ctx: {
+        ...ctx,
+        user: ctx.user,
+      },
+    })
+  }
+
+  // Check for founder demo auth via special header or input
+  const input = rawInput as { demoUserId?: string }
+  if (input?.demoUserId === 'snowball-demo-user') {
+    // Create a mock user object for the demo founder
+    const mockUser = {
+      id: 'snowball-demo-user',
+      user_id: 'snowball-demo-user',
+      email: 'snowball@demo.com',
+      investor_name: 'Snowball Demo',
+      firm_name: 'Snowball',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    return next({
+      ctx: {
+        ...ctx,
+        user: mockUser as User,
+      },
+    })
+  }
+
+  throw new TRPCError({ code: 'UNAUTHORIZED' })
 })

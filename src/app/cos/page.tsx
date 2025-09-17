@@ -12,7 +12,7 @@ export default function ChiefOfStaffPage() {
   useEffect(() => {
     if (typedRef.current) {
       const typed = new Typed(typedRef.current, {
-        strings: ['Fundraising', 'Hiring', 'Sales', 'Time'],
+        strings: ['Maximize your connections', 'Maximize your time', 'Maximize your ROI'],
         typeSpeed: 60,
         backSpeed: 40,
         backDelay: 1500,
@@ -87,21 +87,18 @@ export default function ChiefOfStaffPage() {
           <div className="max-w-5xl mx-auto">
             {/* Main Headline */}
             <h1 className="text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-8xl mb-8 leading-tight">
-              World&apos;s First
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-blue-600 mt-2">
-                Agentic Chief of Staff
+                Meet the right people
               </span>
             </h1>
 
-            {/* Leverage Section */}
+            {/* Dynamic Text Section */}
             <div className="mb-16">
               <div className="text-center">
-                <div className="flex flex-wrap items-baseline justify-center gap-x-4 gap-y-2 text-5xl md:text-6xl lg:text-7xl font-bold text-gray-100 mb-4 leading-tight">
-                  <span className="inline-block">Leverage</span>
-                  <span className="inline-block">Your</span>
+                <div className="flex flex-wrap items-baseline justify-center gap-x-4 gap-y-2 text-4xl md:text-5xl lg:text-6xl font-bold text-gray-100 mb-4 leading-tight">
                   <span 
                     ref={typedRef}
-                    className="block md:inline-block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 text-center"
+                    className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 text-center"
                   >
                   </span>
                 </div>
@@ -111,23 +108,14 @@ export default function ChiefOfStaffPage() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row justify-center gap-6">
-              <Link href="/auth/founder/signin">
+              <a href="https://forms.gle/uocZz7Et3UjfkGGT7" target="_blank" rel="noopener noreferrer">
                 <Button 
                   size="lg" 
                   className="w-full sm:w-auto h-14 px-12 text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-xl font-medium rounded-lg border-0 shadow-2xl hover:shadow-blue-500/25 transition-all duration-300"
                 >
-                  Get Started
+                  Apply Now
                 </Button>
-              </Link>
-              <Link href="/demo">
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  className="w-full sm:w-auto h-14 px-12 text-gray-300 border-gray-600 hover:bg-gray-800 hover:text-white text-xl font-medium rounded-lg backdrop-blur-sm transition-all duration-300"
-                >
-                  See Demo
-                </Button>
-              </Link>
+              </a>
             </div>
           </div>
         </div>
@@ -137,24 +125,24 @@ export default function ChiefOfStaffPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
             {[
               {
-                title: 'Fundraising',
-                description: 'Automate investor outreach, track pipeline, and manage due diligence processes',
-                icon: '💰'
+                title: 'Identify',
+                description: 'Quickly prioritize who you want to meet in advance of any event, conference, or trip',
+                icon: '🎯'
               },
               {
-                title: 'Hiring',
-                description: 'Source candidates, screen resumes, and coordinate interview processes',
-                icon: '👥'
+                title: 'Outreach',
+                description: 'Proactively invite them to set aside time to connect',
+                icon: '📧'
               },
               {
-                title: 'Sales',
-                description: 'Generate leads, follow up with prospects, and manage customer relationships',
+                title: 'Schedule',
+                description: 'Ensure your calendar is always filled with meetings that will move you forward',
+                icon: '📅'
+              },
+              {
+                title: 'Maximize ROI',
+                description: 'Get the most out of your time and investment with others',
                 icon: '📈'
-              },
-              {
-                title: 'Time',
-                description: 'Schedule meetings, manage calendars, and prioritize important tasks',
-                icon: '⏰'
               }
             ].map((feature) => (
               <div 
@@ -179,19 +167,16 @@ export default function ChiefOfStaffPage() {
         <div className="py-20 text-center">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-              Ready to get your time back?
+              Ready to maximize your time meeting the right people
             </h2>
-            <p className="text-xl text-gray-300 mb-8">
-              Join the future of executive assistance with AI that actually understands your business.
-            </p>
-            <Link href="/auth/founder/signin">
+            <a href="https://forms.gle/uocZz7Et3UjfkGGT7" target="_blank" rel="noopener noreferrer">
               <Button 
                 size="lg" 
                 className="h-14 px-12 text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-xl font-medium rounded-lg shadow-2xl hover:shadow-blue-500/25 transition-all duration-300"
               >
-                Start Now
+                Apply Now
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
       </main>

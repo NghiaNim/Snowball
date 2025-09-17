@@ -1,0 +1,269 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { 
+  Database, 
+  FileText, 
+  Trash2, 
+  Download, 
+  RefreshCw, 
+  CheckCircle, 
+  Clock,
+  AlertCircle,
+  Cloud
+} from 'lucide-react'
+
+interface ProductionDatasetManagerProps {
+  onSelectDataset: (dataset: UploadedDataset) => void
+}
+
+interface UploadedDataset {
+  id: string
+  originalName: string
+  gcsPath: string
+  uploadedAt: string
+  fileSize: number
+  status: 'uploaded' | 'processing' | 'processed' | 'error'
+  metadata?: {
+    rowCount?: number
+    columns?: string[]
+    fileType: string
+  }
+}
+
+export function ProductionDatasetManager({ onSelectDataset }: ProductionDatasetManagerProps) {
+  const [datasets, setDatasets] = useState<UploadedDataset[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [deletingDataset, setDeletingDataset] = useState<string | null>(null)
+
+  const fetchDatasets = async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/recommendations/list-datasets')
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch datasets')
+      }
+
+      setDatasets(result.datasets || [])
+    } catch (fetchError) {
+      console.error('Error fetching datasets:', fetchError)
+      setError(fetchError instanceof Error ? fetchError.message : 'Failed to load datasets')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteDataset = async (dataset: UploadedDataset) => {
+    if (!confirm(`Are you sure you want to delete "${dataset.originalName}"? This action cannot be undone.`)) {
+      return
+    }
+
+    setDeletingDataset(dataset.id)
+
+    try {
+      const response = await fetch(`/api/recommendations/delete-dataset?gcsPath=${encodeURIComponent(dataset.gcsPath)}`, {
+        method: 'DELETE',
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete dataset')
+      }
+
+      // Remove from local state
+      setDatasets(prev => prev.filter(d => d.id !== dataset.id))
+    } catch (deleteError) {
+      console.error('Error deleting dataset:', deleteError)
+      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete dataset')
+    } finally {
+      setDeletingDataset(null)
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'uploaded':
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'processing':
+        return <Clock className="h-4 w-4 text-yellow-500" />
+      case 'processed':
+        return <CheckCircle className="h-4 w-4 text-blue-500" />
+      case 'error':
+        return <AlertCircle className="h-4 w-4 text-red-500" />
+      default:
+        return <Clock className="h-4 w-4 text-gray-400" />
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    const variants = {
+      uploaded: 'bg-green-100 text-green-800',
+      processing: 'bg-yellow-100 text-yellow-800',
+      processed: 'bg-blue-100 text-blue-800',
+      error: 'bg-red-100 text-red-800',
+    }
+    
+    return (
+      <Badge className={variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800'}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    )
+  }
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  // Load datasets on component mount
+  useEffect(() => {
+    fetchDatasets()
+  }, [])
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center space-x-2">
+                <Database className="h-5 w-5" />
+                <span>Dataset Manager</span>
+              </CardTitle>
+              <CardDescription>
+                Manage datasets stored in Google Cloud Storage (chief_of_staff_datasets/raw_datasets)
+              </CardDescription>
+            </div>
+            <Button
+              onClick={fetchDatasets}
+              disabled={isLoading}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Error Display */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <RefreshCw className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
+              <p className="text-gray-600">Loading datasets from Google Cloud Storage...</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && datasets.length === 0 && !error && (
+        <Card>
+          <CardContent className="text-center py-12">
+            <Cloud className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No datasets found</h3>
+            <p className="text-gray-500 mb-6">
+              Upload your first dataset to get started with AI recommendations.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Datasets List */}
+      {!isLoading && datasets.length > 0 && (
+        <div className="grid gap-4">
+          {datasets.map((dataset) => (
+            <Card key={dataset.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4 flex-1">
+                    <div className="flex-shrink-0">
+                      <FileText className="h-8 w-8 text-blue-500" />
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <h3 className="text-lg font-medium text-gray-900 truncate">
+                          {dataset.originalName}
+                        </h3>
+                        {getStatusIcon(dataset.status)}
+                        {getStatusBadge(dataset.status)}
+                      </div>
+                      
+                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <span>Size: {formatFileSize(dataset.fileSize)}</span>
+                        <span>Type: {dataset.metadata?.fileType?.toUpperCase() || 'Unknown'}</span>
+                        <span>Uploaded: {formatDate(dataset.uploadedAt)}</span>
+                      </div>
+                      
+                      <div className="mt-2 text-xs text-gray-400">
+                        GCS Path: {dataset.gcsPath}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      onClick={() => onSelectDataset(dataset)}
+                      size="sm"
+                      disabled={dataset.status === 'error'}
+                    >
+                      <Database className="h-4 w-4 mr-2" />
+                      Use for AI
+                    </Button>
+                    
+                    <Button
+                      onClick={() => handleDeleteDataset(dataset)}
+                      disabled={deletingDataset === dataset.id}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {deletingDataset === dataset.id ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

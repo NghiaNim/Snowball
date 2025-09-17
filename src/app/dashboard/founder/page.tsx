@@ -679,6 +679,9 @@ export default function SnowballDashboard() {
               { key: 'deck', label: 'Pitch Deck' },
               { key: 'fundraising', label: 'Fundraising' },
               { key: 'ai-agent', label: 'AI Agent' },
+
+
+
               { key: 'profile', label: 'Profile' }
             ].map((tab) => (
               <button

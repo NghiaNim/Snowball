@@ -20,23 +20,28 @@ Open [http://localhost:3000](http://localhost:3000) to see the landing page.
 
 ## 📋 Project Status
 
-This is the **MVP foundation** with:
+**Production-ready platform** with:
 - ✅ Modern Next.js 15 setup with TypeScript
-- ✅ Tailwind CSS v4 design system
-- ✅ Supabase integration structure
-- ✅ Landing page with hero and features
-- ✅ Authentication page structure
-- ✅ Development tools (ESLint, Prettier)
+- ✅ Tailwind CSS v4 design system  
+- ✅ Complete founder/investor dashboard system
+- ✅ AI-powered recommendation engine (BigQuery + OpenAI)
+- ✅ Google Cloud integration (Storage + Functions)
+- ✅ Pitch deck upload and tracking system
+- ✅ Admin panel with demo features
+- ✅ Email notifications via Resend
 
 ## 🏗️ Architecture
 
 **Frontend**: Next.js 15 (App Router) + TypeScript + Tailwind CSS v4
-**Backend**: Supabase (PostgreSQL + Auth + Storage)
-**Deployment**: Vercel + Supabase
+**Core Platform**: Supabase (PostgreSQL + Auth + Storage)
+**AI Recommendations**: Google Cloud (BigQuery + Functions + Storage) + OpenAI
+**Deployment**: Vercel + Google Cloud + Supabase
 
 ## 📖 Documentation
 
-See [SETUP.md](./SETUP.md) for detailed setup instructions and development guidelines.
+**[📋 Complete Setup Guide](./docs/setup.md)** - Everything you need to get Snowball running
+
+All documentation is organized in the [`/docs`](./docs/) folder following our documentation standards.
 
 ## 🎯 MVP Concept
 
@@ -73,9 +78,9 @@ src/
 
 ## 🚀 Next Steps
 
-1. Set up Supabase database schema
-2. Implement user authentication
-3. Build investor dashboard
-4. Create founder profile system
-5. Add tribe selection
-6. Implement deal flow matching
+1. Real authentication system (replace hardcoded logins)
+2. Enhanced user management and onboarding
+3. Advanced recommendation algorithms and caching
+4. Analytics dashboard and usage tracking
+5. Mobile-first responsive improvements
+6. Scaled tribe management system
