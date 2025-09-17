@@ -9,14 +9,27 @@ alwaysApply: true
 ## Core Principle
 Always document requirements and features BEFORE implementing them. This ensures clear understanding, proper planning, and consistent implementation across the team.
 
-## Documentation Requirements
+## Documentation Organization
 
-### New Features
-1. **Create separate rule files** for major feature sets
-2. **Update existing MVP requirements** when adding new functionality
-3. **Document user flows** and technical specifications
+### File Placement Rules
+- **ALL documentation goes in `/docs`** - No markdown files in project root
+- **No duplicate documentation** - Each piece of information exists in one place only
+- **Updates go to existing docs** - Don't create new files, update existing ones when possible
+
+### Documentation Types
+
+#### Requirements & Features
+1. **Create separate rule files** for major feature sets in `.cursor/rules/`
+2. **Update existing MVP requirements** when adding new functionality in `docs/mvp-requirements.md`
+3. **Document user flows** and technical specifications in `docs/`
 4. **Include UI/UX requirements** and constraints
 5. **Specify database schema changes** when applicable
+
+#### Technical Documentation
+- **Setup instructions** → `docs/setup.md`
+- **Troubleshooting** → `docs/troubleshooting.md`  
+- **Feature specs** → `docs/[feature-name].md`
+- **Integration guides** → `docs/[integration-name].md`
 
 ### Rule File Structure
 - Place new rules in `.cursor/rules/` directory
@@ -25,10 +38,11 @@ Always document requirements and features BEFORE implementing them. This ensures
 - Set `alwaysApply: false` for feature-specific rules
 
 ### Update Process
-1. Document new requirements in dedicated rule files
+1. Document new requirements in `/docs` directory first
 2. Update relevant existing rules (MVP, tech stack, etc.)
 3. Ensure consistency across all documentation
 4. Review and validate before implementation
+5. **Clean up** - Delete any documentation files outside `/docs`
 
 ## Benefits
 - Clear scope definition before coding

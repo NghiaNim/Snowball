@@ -86,7 +86,7 @@ Make the questions specific and actionable.
     console.error('LangChain API error:', error)
     
     // Check if it's a quota/rate limit error
-    if (error.message && (error.message.includes('quota') || error.message.includes('429'))) {
+    if (error instanceof Error && error.message && (error.message.includes('quota') || error.message.includes('429'))) {
       console.log('🚨 OpenAI quota exceeded - using enhanced mock questions')
     } else {
       console.log('⚠️ LangChain error - using fallback questions')
@@ -199,7 +199,7 @@ Focus on:
     console.error('LangChain refinement error:', error)
     
     // Check if it's a quota/rate limit error
-    if (error.message && (error.message.includes('quota') || error.message.includes('429'))) {
+    if (error instanceof Error && error.message && (error.message.includes('quota') || error.message.includes('429'))) {
       console.log('🚨 OpenAI quota exceeded for refinement - using enhanced mock results')
     } else {
       console.log('⚠️ LangChain refinement error - using fallback results')

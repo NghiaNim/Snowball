@@ -8,6 +8,7 @@ This folder contains all documentation for the Snowball platform following our d
 - [`setup.md`](./setup.md) - **Complete setup guide** (start here!)
 - [`cloud-function-integration.md`](./cloud-function-integration.md) - AI recommendations integration details
 - [`cloud-function-deployment.md`](./cloud-function-deployment.md) - Cloud function deployment specifics
+- [`deployment-fix.md`](./deployment-fix.md) - Cloud function architecture fix for connection issues
 
 ### Feature Requirements
 - [`mvp-requirements.md`](./mvp-requirements.md) - MVP feature set and database schema

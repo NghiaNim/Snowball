@@ -23,8 +23,14 @@ try {
 
   // Use either credentials file path or JSON content
   if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
-    storageConfig.credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS)
-    console.log('Using GOOGLE_CLOUD_CREDENTIALS from environment variable')
+    try {
+      storageConfig.credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS)
+      console.log('Using GOOGLE_CLOUD_CREDENTIALS from environment variable')
+    } catch {
+      console.warn('Failed to parse GOOGLE_CLOUD_CREDENTIALS, falling back to key file')
+      storageConfig.keyFilename = credentialsPath
+      console.log(`Using credentials file: ${credentialsPath}`)
+    }
   } else {
     storageConfig.keyFilename = credentialsPath
     console.log(`Using credentials file: ${credentialsPath}`)

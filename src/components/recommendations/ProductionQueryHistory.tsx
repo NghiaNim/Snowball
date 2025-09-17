@@ -466,7 +466,7 @@ export function ProductionQueryHistory({
                           <div key={result.id} className="bg-white border rounded-lg p-3">
                             <div className="flex items-start justify-between mb-2">
                               <h4 className="font-medium">
-                                {Object.values(result.data)[0] || `Result ${index + 1}`}
+                                {String(Object.values(result.data)[0]) || `Result ${index + 1}`}
                               </h4>
                               <div className="flex items-center gap-1">
                                 <Star className="h-3 w-3 text-yellow-500" />

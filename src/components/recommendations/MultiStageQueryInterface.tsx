@@ -989,7 +989,7 @@ export function MultiStageQueryInterface({
                       <div className="flex items-center gap-2">
                         <User className="h-5 w-5 text-gray-400" />
                         <h3 className="font-medium text-lg">
-                          {getFieldValue(result.data, ['name', 'full_name', 'fullname']) || `Candidate ${index + 1}`}
+                          {String(getFieldValue(result.data, ['name', 'full_name', 'fullname'])) || `Candidate ${index + 1}`}
                         </h3>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1004,20 +1004,20 @@ export function MultiStageQueryInterface({
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      {getFieldValue(result.data, ['title', 'role', 'position']) && (
+                      {Boolean(getFieldValue(result.data, ['title', 'role', 'position'])) && (
                         <div className="flex items-center gap-2">
                           <Building className="h-4 w-4 text-gray-400" />
                           <span className="text-sm">
-                            {getFieldValue(result.data, ['title', 'role', 'position'])}
+                            {String(getFieldValue(result.data, ['title', 'role', 'position']))}
                           </span>
                         </div>
                       )}
                       
-                      {getFieldValue(result.data, ['location', 'city', 'address']) && (
+                      {Boolean(getFieldValue(result.data, ['location', 'city', 'address'])) && (
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4 text-gray-400" />
                           <span className="text-sm">
-                            {getFieldValue(result.data, ['location', 'city', 'address'])}
+                            {String(getFieldValue(result.data, ['location', 'city', 'address']))}
                           </span>
                         </div>
                       )}

@@ -305,7 +305,7 @@ export function ProductionQueryInterface({
               </CardTitle>
               {metadata && (
                 <div className="text-sm text-gray-500">
-                  {metadata.total_found} found • {metadata.processing_time}ms
+                  {Number(metadata.total_found)} found • {Number(metadata.processing_time)}ms
                 </div>
               )}
             </div>
@@ -328,8 +328,8 @@ export function ProductionQueryInterface({
                         <div className="flex items-center gap-2">
                           <User className="h-5 w-5 text-gray-400" />
                           <h3 className="font-medium text-lg">
-                            {getFieldValue(result.data, ['name', 'full_name', 'fullname']) || 
-                             getFieldValue(result.data, ['first_name', 'firstname']) || 
+                            {String(getFieldValue(result.data, ['name', 'full_name', 'fullname'])) || 
+                             String(getFieldValue(result.data, ['first_name', 'firstname'])) || 
                              `Person ${index + 1}`}
                           </h3>
                         </div>
@@ -340,29 +340,29 @@ export function ProductionQueryInterface({
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                        {getFieldValue(result.data, ['title', 'role', 'position']) && (
+                        {Boolean(getFieldValue(result.data, ['title', 'role', 'position'])) && (
                           <div className="flex items-center gap-2">
                             <Building className="h-4 w-4 text-gray-400" />
                             <span className="text-sm">
-                              {getFieldValue(result.data, ['title', 'role', 'position'])}
+                              {String(getFieldValue(result.data, ['title', 'role', 'position']))}
                             </span>
                           </div>
                         )}
                         
-                        {getFieldValue(result.data, ['company', 'organization', 'firm']) && (
+                        {Boolean(getFieldValue(result.data, ['company', 'organization', 'firm'])) && (
                           <div className="flex items-center gap-2">
                             <Building className="h-4 w-4 text-gray-400" />
                             <span className="text-sm">
-                              {getFieldValue(result.data, ['company', 'organization', 'firm'])}
+                              {String(getFieldValue(result.data, ['company', 'organization', 'firm']))}
                             </span>
                           </div>
                         )}
 
-                        {getFieldValue(result.data, ['location', 'city', 'address']) && (
+                        {Boolean(getFieldValue(result.data, ['location', 'city', 'address'])) && (
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-gray-400" />
                             <span className="text-sm">
-                              {getFieldValue(result.data, ['location', 'city', 'address'])}
+                              {String(getFieldValue(result.data, ['location', 'city', 'address']))}
                             </span>
                           </div>
                         )}

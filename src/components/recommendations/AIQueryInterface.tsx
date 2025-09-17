@@ -212,7 +212,7 @@ export function AIQueryInterface({ selectedDatasetId, onBackToDatasets }: AIQuer
               <span>AI Recommendations</span>
             </CardTitle>
             <CardDescription>
-              Found {results.metadata.total_found} matches in {results.metadata.processing_time}ms
+              Found {(results.metadata as {total_found: number, processing_time: number}).total_found} matches in {(results.metadata as {total_found: number, processing_time: number}).processing_time}ms
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -220,20 +220,7 @@ export function AIQueryInterface({ selectedDatasetId, onBackToDatasets }: AIQuer
               {/* Query Analysis */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-2">AI Query Analysis:</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-gray-600">Intent:</span>
-                    <span className="ml-1 capitalize">{results.criteria_used.intent}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Roles:</span>
-                    <span className="ml-1">{results.criteria_used.target_persona.roles.join(', ')}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Industries:</span>
-                    <span className="ml-1">{results.criteria_used.target_persona.industries.join(', ')}</span>
-                  </div>
-                </div>
+                <p className="text-sm text-gray-600">AI processed your query and identified relevant matches.</p>
               </div>
 
               {/* Recommendations */}

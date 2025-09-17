@@ -107,36 +107,13 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 /**
  * Flexible auth procedure that handles both Supabase and founder demo auth
  */
-export const flexibleAuthProcedure = t.procedure.use(async ({ ctx, next, rawInput }) => {
+export const flexibleAuthProcedure = t.procedure.use(async ({ ctx, next }) => {
   // If we have a Supabase authenticated user, use that
   if (ctx.user) {
     return next({
       ctx: {
         ...ctx,
         user: ctx.user,
-      },
-    })
-  }
-
-  // Check for founder demo auth via special header or input
-  const input = rawInput as { demoUserId?: string }
-  if (input?.demoUserId === 'snowball-demo-user') {
-    // Create a mock user object for the demo founder
-    const mockUser = {
-      id: 'snowball-demo-user',
-      user_id: 'snowball-demo-user',
-      email: 'snowball@demo.com',
-      investor_name: 'Snowball Demo',
-      firm_name: 'Snowball',
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-
-    return next({
-      ctx: {
-        ...ctx,
-        user: mockUser as User,
       },
     })
   }

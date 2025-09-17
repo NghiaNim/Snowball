@@ -1,0 +1,38 @@
+---
+description: Keep update messages concise and to the point
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Concise Update Communication
+
+## Core Principle
+After completing edits, provide brief, focused summaries without excessive detail.
+
+## Guidelines
+
+### Update Messages Should:
+- **Be concise** - 1-2 sentences maximum
+- **State what was done** - "Fixed X", "Updated Y", "Added Z"  
+- **Mention key outcome** - "Now works correctly", "Ready to deploy"
+- **Avoid lengthy explanations** - Keep technical details minimal
+
+### Avoid:
+- Long step-by-step breakdowns
+- Excessive emoji usage
+- Detailed code explanations
+- Repeating what the user already knows
+
+### Examples
+
+#### Good ✅
+"Fixed deployment script to use only `--set-env-vars`. Ready to deploy."
+
+#### Bad ❌  
+"I've updated the deployment script by changing the environment variable handling mechanism to resolve the gcloud conflict between `--env-vars-file` and `--set-env-vars` flags. The script now extracts variables from your `.env.yaml` file and passes them using only the `--set-env-vars` option, which should eliminate the deployment error you encountered. This approach maintains the automatic credential detection while ensuring compatibility with gcloud's argument restrictions."
+
+## Exception
+Provide detailed explanations only when:
+- User explicitly asks for details
+- Complex architectural changes require context
+- Troubleshooting assistance is needed
