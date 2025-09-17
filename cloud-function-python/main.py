@@ -13,13 +13,13 @@ Handles HTTP requests and orchestrates the multi-stage pipeline:
 import os
 import json
 import time
-import requests
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from flask import Request, jsonify
 from flask_cors import cross_origin
 import functions_framework
 from google.cloud import storage
+from supabase import create_client, Client
 
 from ai_agent import generate_follow_up_questions, translate_query_to_criteria
 from bm25_search import search_with_bm25
@@ -28,6 +28,22 @@ from data_parser import parse_dataset
 
 # Initialize Google Cloud Storage
 storage_client = storage.Client()
+
+# Initialize Supabase client
+def get_supabase_client() -> Client:
+    """Initialize Supabase client with service role key"""
+    # Try both possible environment variable names
+    supabase_url = os.environ.get('SUPABASE_URL') or os.environ.get('NEXT_PUBLIC_SUPABASE_URL')
+    supabase_service_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if not supabase_url or not supabase_service_key:
+        print("⚠️ Supabase credentials not configured - database updates disabled")
+        print(f"   SUPABASE_URL: {'✅' if supabase_url else '❌'}")
+        print(f"   SUPABASE_SERVICE_ROLE_KEY: {'✅' if supabase_service_key else '❌'}")
+        return None
+    
+    print(f"🔗 Connecting to Supabase: {supabase_url}")
+    return create_client(supabase_url, supabase_service_key)
 
 # In-memory storage for async results (use Redis/Firestore in production)
 results_store = {}
@@ -254,167 +270,47 @@ def execute_search_pipeline(
         
         raise error
 
-def get_api_base_url() -> str:
-    """Get the appropriate API base URL for the current environment"""
-    cf_runtime_url = os.environ.get('CF_RUNTIME_URL', 'Not Set')
-    function_name = os.environ.get('X_GOOGLE_FUNCTION_NAME', 'Not Set')
-    k_service = os.environ.get('K_SERVICE', 'Not Set')
-    
-    print(f"🔍 Environment variables:")
-    print(f"  CF_RUNTIME_URL: {cf_runtime_url}")
-    print(f"  X_GOOGLE_FUNCTION_NAME: {function_name}")
-    print(f"  K_SERVICE: {k_service}")
-    
-    # Check for local development environment
-    api_base_url = os.environ.get('API_BASE_URL')
-    local_dev = os.environ.get('LOCAL_DEVELOPMENT', 'false').lower() == 'true'
-    
-    if api_base_url:
-        base_url = api_base_url
-        print(f"🔍 Using custom API_BASE_URL: {base_url}")
-    elif local_dev:
-        base_url = 'http://localhost:3000'  # Explicit local development flag
-        print(f"🔍 LOCAL_DEVELOPMENT=true, using: {base_url}")
-    elif (cf_runtime_url == 'Not Set' or 
-          'localhost' in cf_runtime_url or 
-          'functions-framework' in function_name):
-        base_url = 'http://localhost:3000'  # Local development detection
-        print(f"🔍 Detected local development, using: {base_url}")
-    else:
-        # For production Cloud Functions, force localhost during development
-        # This is a temporary override - set LOCAL_DEVELOPMENT=true to use localhost
-        base_url = 'http://localhost:3000'  # FORCE LOCAL FOR DEVELOPMENT
-        print(f"🔍 FORCED LOCAL DEVELOPMENT MODE: {base_url}")
-        print(f"🔍 Set LOCAL_DEVELOPMENT=false to use production URLs")
-        
-    return base_url
+# Removed get_api_base_url function - no longer needed since we update Supabase directly
 
 def update_query_progress(query_id: str, stage: str, message: str, progress: int, completed: bool):
-    """Update query progress in database"""
+    """Update query progress directly in Supabase database"""
     try:
-        import requests
+        supabase = get_supabase_client()
+        if not supabase:
+            print(f"🔍 Progress update skipped - Supabase not configured")
+            return
         
-        base_url = get_api_base_url()
-        api_url = f"{base_url}/api/recommendations/query-history"
+        # Determine status based on stage and completion
+        if stage == 'error':
+            status = 'error'
+        elif completed:
+            status = 'completed'
+        else:
+            status = 'processing'
         
         update_data = {
-            'queryId': query_id,
-            'status': 'completed' if completed and stage != 'error' else 'error' if stage == 'error' else 'processing',
+            'status': status,
             'metadata': {
                 'current_stage': stage,
                 'stage_message': message,
                 'progress': progress,
                 'last_update': datetime.now().isoformat()
-            }
+            },
+            'updated_at': datetime.now().isoformat()
         }
         
-        print(f"🔄 Attempting progress update to: {api_url}")
-        print(f"📝 Update data: {json.dumps(update_data, indent=2)}")
+        print(f"🔄 Updating query {query_id} in Supabase: {stage} ({progress}%)")
         
-        response = requests.put(
-            api_url,
-            json=update_data,
-            headers={
-                'Content-Type': 'application/json',
-                'User-Agent': 'SnowballCloudFunction/1.0',
-                'Accept': 'application/json'
-            },
-            timeout=10  # Increased timeout
-        )
+        result = supabase.table('query_history').update(update_data).eq('id', query_id).execute()
         
-        print(f"📡 Response status: {response.status_code}")
-        print(f"📡 Response headers: {dict(response.headers)}")
-        
-        if response.status_code != 200:
-            print(f"⚠️  Progress update failed: {response.status_code}")
-            print(f"📄 Response text: {response.text}")
-            # Try to parse error response
-            try:
-                error_data = response.json()
-                print(f"📄 Error response: {json.dumps(error_data, indent=2)}")
-            except:
-                print("📄 Could not parse error response as JSON")
-            
-            # If progress update fails, try to mark query as error so frontend stops polling
-            if response.status_code in [404, 500]:
-                print(f"🔄 Progress update failed, attempting to mark query as error...")
-                try:
-                    error_update_data = {
-                        'queryId': query_id,
-                        'status': 'error',
-                        'metadata': {
-                            'current_stage': 'error',
-                            'stage_message': f'API update failed: {response.status_code}',
-                            'progress': 0,
-                            'last_update': datetime.now().isoformat(),
-                            'api_error': response.text
-                        }
-                    }
-                    
-                    # Try one more time with error status
-                    error_response = requests.put(
-                        api_url,
-                        json=error_update_data,
-                        headers={
-                            'Content-Type': 'application/json',
-                            'User-Agent': 'SnowballCloudFunction/1.0',
-                            'Accept': 'application/json'
-                        },
-                        timeout=5
-                    )
-                    
-                    if error_response.status_code == 200:
-                        print(f"✅ Successfully marked query as error")
-                    else:
-                        print(f"❌ Failed to mark query as error: {error_response.status_code}")
-                        
-                except Exception as e:
-                    print(f"❌ Failed to send error status: {str(e)}")
-        else:
+        if result.data:
             print(f"✅ Progress update successful")
+        else:
+            print(f"⚠️ No rows updated - query {query_id} may not exist")
             
     except Exception as error:
-        print(f"⚠️  Progress update error: {str(error)}")
-        import traceback
-        print(f"🔍 Full traceback: {traceback.format_exc()}")
-        
-        # If even the API call failed, try to mark query as error
-        try:
-            print(f"🔄 API call failed, attempting to mark query as error...")
-            error_update_data = {
-                'queryId': query_id,
-                'status': 'error',
-                'metadata': {
-                    'current_stage': 'error',
-                    'stage_message': f'API call failed: {str(error)}',
-                    'progress': 0,
-                    'last_update': datetime.now().isoformat(),
-                    'exception': str(error)
-                }
-            }
-            
-            # Try to get base URL again and make one final attempt
-            base_url = get_api_base_url()
-            api_url = f"{base_url}/api/recommendations/query-history"
-            
-            error_response = requests.put(
-                api_url,
-                json=error_update_data,
-                headers={
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'SnowballCloudFunction/1.0',
-                    'Accept': 'application/json'
-                },
-                timeout=5
-            )
-            
-            if error_response.status_code == 200:
-                print(f"✅ Successfully marked query as error after exception")
-            else:
-                print(f"❌ Failed to mark query as error after exception: {error_response.status_code}")
-                
-        except Exception as final_error:
-            print(f"❌ Final error attempt failed: {str(final_error)}")
+        print(f"⚠️ Progress update error: {str(error)}")
+        # Don't fail the whole function for progress update errors
 
 def store_results(result_id: str, results: Dict[str, Any]) -> None:
     """Store results for later retrieval (simple in-memory storage)"""
@@ -426,64 +322,44 @@ def get_stored_results(result_id: str) -> Optional[Dict[str, Any]]:
     return results_store.get(result_id)
 
 def update_query_in_database(query_id: str, results: Dict[str, Any]) -> None:
-    """Update query status and results in the database"""
+    """Update query status and results directly in Supabase database"""
     try:
-        import requests
-        
-        base_url = get_api_base_url()
-        api_url = f"{base_url}/api/recommendations/query-history"
+        supabase = get_supabase_client()
+        if not supabase:
+            print(f"🔍 Database update skipped - Supabase not configured")
+            return
         
         # Prepare the update payload  
         if results.get('success'):
-            # Map the cloud function response to the expected API format
+            # Map the cloud function response to the expected database format
             recommendations = results.get('recommendations', [])
             
             update_data = {
-                'queryId': query_id,
                 'status': 'completed',
                 'results': recommendations,
-                'metadata': results.get('metadata', {})
+                'metadata': results.get('metadata', {}),
+                'updated_at': datetime.now().isoformat()
             }
+            print(f"🔄 Updating query {query_id} with {len(recommendations)} results")
         else:
             update_data = {
-                'queryId': query_id,
                 'status': 'error',
                 'metadata': {
-                    'error': results.get('error', 'Unknown error occurred')
-                }
+                    'error': results.get('error', 'Unknown error occurred'),
+                    'last_update': datetime.now().isoformat()
+                },
+                'updated_at': datetime.now().isoformat()
             }
+            print(f"🔄 Updating query {query_id} with error status")
         
-        print(f"🔄 Attempting database update to: {api_url}")
-        print(f"📝 Update data: {json.dumps(update_data, indent=2)}")
+        # Update the database directly
+        result = supabase.table('query_history').update(update_data).eq('id', query_id).execute()
         
-        # Make the API call to update the database
-        response = requests.put(
-            api_url,
-            json=update_data,
-            headers={
-                'Content-Type': 'application/json',
-                'User-Agent': 'SnowballCloudFunction/1.0',
-                'Accept': 'application/json'
-            },
-            timeout=10  # 10 second timeout
-        )
-        
-        print(f"📡 Response status: {response.status_code}")
-        print(f"📡 Response headers: {dict(response.headers)}")
-        
-        if response.status_code == 200:
+        if result.data:
             print(f"✅ Successfully updated query {query_id} in database")
         else:
-            print(f"⚠️ Failed to update database: {response.status_code} - {response.text}")
-            # Try to parse error response
-            try:
-                error_data = response.json()
-                print(f"📄 Error response: {json.dumps(error_data, indent=2)}")
-            except:
-                print("📄 Could not parse error response as JSON")
+            print(f"⚠️ No rows updated - query {query_id} may not exist")
             
     except Exception as error:
         print(f"❌ Database update error: {str(error)}")
-        import traceback
-        print(f"🔍 Full traceback: {traceback.format_exc()}")
         # Don't re-raise - we don't want to fail the whole function for database issues
