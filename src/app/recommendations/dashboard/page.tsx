@@ -95,26 +95,26 @@ export default function RecommendationsDashboard() {
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+          <div className="py-4 md:py-6">
+            <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">
                   AI Recommendation System
                 </h1>
-                <p className="mt-2 text-lg text-gray-600">
+                <p className="mt-1 md:mt-2 text-sm md:text-lg text-gray-600">
                   Upload your data and find the perfect people using AI-powered recommendations
                 </p>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
                 {user && (
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-600 text-center sm:text-left">
                     Welcome, <span className="font-medium">{user.username}</span>
                     <div className="text-xs text-gray-500">
-                      Since {new Date(user.loginTime).toLocaleString()}
+                      Since {new Date(user.loginTime).toLocaleDateString()}
                     </div>
                   </div>
                 )}
-                <Button onClick={handleLogout} variant="outline">
+                <Button onClick={handleLogout} variant="outline" className="w-full sm:w-auto">
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </Button>
@@ -124,20 +124,20 @@ export default function RecommendationsDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Navigation Tabs */}
-        <div className="mb-8">
-          <nav className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+        <div className="mb-6 md:mb-8">
+          <nav className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-1 bg-gray-100 rounded-lg p-1">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
                 <Button
                   key={tab.id}
                   variant={activeTab === tab.id ? 'default' : 'ghost'}
-                  className={`flex items-center space-x-2 flex-1 justify-center ${
+                  className={`flex items-center justify-center space-x-2 flex-1 py-3 px-4 min-h-[44px] text-sm md:text-base ${
                     activeTab === tab.id 
-                      ? 'bg-white shadow-sm' 
-                      : 'hover:bg-gray-200'
+                      ? 'bg-white shadow-sm text-blue-600' 
+                      : 'hover:bg-gray-200 text-gray-700'
                   }`}
                   onClick={() => {
                     setActiveTab(tab.id)
@@ -149,8 +149,8 @@ export default function RecommendationsDashboard() {
                     }
                   }}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{tab.label}</span>
                 </Button>
               )
             })}

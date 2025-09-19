@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -41,7 +41,7 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
   const [error, setError] = useState<string | null>(null)
   const [deletingDataset, setDeletingDataset] = useState<string | null>(null)
 
-  const fetchDatasets = async () => {
+  const fetchDatasets = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
@@ -65,7 +65,7 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [onDatasetsChange])
 
   const handleDeleteDataset = async (dataset: UploadedDataset) => {
     if (!confirm(`Are you sure you want to delete "${dataset.originalName}"? This action cannot be undone.`)) {
@@ -149,21 +149,21 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
   // Load datasets on component mount
   useEffect(() => {
     fetchDatasets()
-  })
+  }, [fetchDatasets])
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center space-x-2">
+          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+            <div className="flex-1">
+              <CardTitle className="flex items-center space-x-2 text-lg md:text-xl">
                 <Database className="h-5 w-5" />
                 <span>Dataset Manager</span>
               </CardTitle>
-              <CardDescription>
-                Manage datasets stored in Google Cloud Storage (chief_of_staff_datasets/raw_datasets)
+              <CardDescription className="mt-1 text-sm md:text-base">
+                Manage datasets stored in Google Cloud Storage
               </CardDescription>
             </div>
             <Button
@@ -171,6 +171,7 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
               disabled={isLoading}
               variant="outline"
               size="sm"
+              className="w-full md:w-auto min-h-[44px]"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
@@ -217,39 +218,43 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
         <div className="grid gap-4">
           {datasets.map((dataset) => (
             <Card key={dataset.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4 flex-1">
-                    <div className="flex-shrink-0">
-                      <FileText className="h-8 w-8 text-blue-500" />
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+                  <div className="flex items-start space-x-3 md:space-x-4 flex-1">
+                    <div className="flex-shrink-0 mt-1">
+                      <FileText className="h-6 w-6 md:h-8 md:w-8 text-blue-500" />
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <h3 className="text-lg font-medium text-gray-900 truncate">
+                      <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-y-0 md:space-x-2 mb-2">
+                        <h3 className="text-base md:text-lg font-medium text-gray-900 truncate">
                           {dataset.originalName}
                         </h3>
-                        {getStatusIcon(dataset.status)}
-                        {getStatusBadge(dataset.status)}
+                        <div className="flex items-center space-x-2">
+                          {getStatusIcon(dataset.status)}
+                          {getStatusBadge(dataset.status)}
+                        </div>
                       </div>
                       
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      <div className="flex flex-col space-y-1 md:flex-row md:items-center md:space-y-0 md:space-x-4 text-sm text-gray-500">
                         <span>Size: {formatFileSize(dataset.fileSize)}</span>
                         <span>Type: {dataset.metadata?.fileType?.toUpperCase() || 'Unknown'}</span>
-                        <span>Uploaded: {formatDate(dataset.uploadedAt)}</span>
+                        <span className="md:hidden">Uploaded: {formatDate(dataset.uploadedAt).split(',')[0]}</span>
+                        <span className="hidden md:inline">Uploaded: {formatDate(dataset.uploadedAt)}</span>
                       </div>
                       
-                      <div className="mt-2 text-xs text-gray-400">
+                      <div className="mt-2 text-xs text-gray-400 truncate">
                         GCS Path: {dataset.gcsPath}
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-2 md:ml-4">
                     <Button
                       onClick={() => onSelectDataset(dataset)}
                       size="sm"
                       disabled={dataset.status === 'error'}
+                      className="w-full sm:w-auto min-h-[44px] px-4"
                     >
                       <Database className="h-4 w-4 mr-2" />
                       Use for AI
@@ -260,6 +265,7 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
                       disabled={deletingDataset === dataset.id}
                       variant="outline"
                       size="sm"
+                      className="w-full sm:w-auto min-h-[44px] px-4"
                     >
                       {deletingDataset === dataset.id ? (
                         <RefreshCw className="h-4 w-4 animate-spin" />

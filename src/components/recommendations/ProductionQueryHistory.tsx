@@ -306,29 +306,29 @@ export function ProductionQueryHistory({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <History className="h-6 w-6 text-purple-500" />
+      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+        <div className="flex-1">
+          <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+            <History className="h-5 w-5 md:h-6 md:w-6 text-purple-500" />
             Query History
           </h2>
-          <p className="text-gray-600 mt-1">
+          <p className="text-gray-600 mt-1 text-sm md:text-base">
             Review and rerun your previous AI searches
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:gap-2">
           {onNewSearch && (
-            <Button onClick={onNewSearch} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={onNewSearch} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto min-h-[44px]">
               <Plus className="h-4 w-4 mr-2" />
               New Search
             </Button>
           )}
-          <Button variant="outline" onClick={() => loadHistory()} size="sm">
+          <Button variant="outline" onClick={() => loadHistory()} size="sm" className="w-full sm:w-auto min-h-[44px]">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
           {history.length > 0 && (
-            <Button variant="outline" onClick={clearHistory} size="sm" className="text-red-600 hover:text-red-700">
+            <Button variant="outline" onClick={clearHistory} size="sm" className="text-red-600 hover:text-red-700 w-full sm:w-auto min-h-[44px]">
               <Trash2 className="h-4 w-4 mr-2" />
               Clear All
             </Button>
@@ -341,10 +341,10 @@ export function ProductionQueryHistory({
         <Alert className="border-blue-200 bg-blue-50">
           <Brain className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-800">
-            <div className="flex items-center justify-between">
-              <span>Search in progress! You can continue searching while we process your request.</span>
+            <div className="flex flex-col space-y-3 md:flex-row md:items-center md:justify-between md:space-y-0">
+              <span className="text-sm md:text-base">Search in progress! You can continue searching while we process your request.</span>
               {onNewSearch && (
-                <Button variant="outline" size="sm" onClick={onNewSearch} className="ml-4">
+                <Button variant="outline" size="sm" onClick={onNewSearch} className="w-full md:w-auto md:ml-4 min-h-[44px]">
                   <Plus className="h-3 w-3 mr-1" />
                   New Search
                 </Button>
@@ -357,19 +357,19 @@ export function ProductionQueryHistory({
       {/* History Content */}
       {history.length === 0 ? (
         <Card>
-          <CardContent className="text-center py-12">
-            <History className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No queries yet</h3>
-            <p className="text-gray-500 mb-6">
+          <CardContent className="text-center py-8 md:py-12 px-4">
+            <History className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400 mb-4" />
+            <h3 className="text-base md:text-lg font-medium text-gray-900 mb-2">No queries yet</h3>
+            <p className="text-sm md:text-base text-gray-500 mb-6">
               Your AI search history will appear here after you run some queries.
             </p>
             {onNewSearch ? (
-              <Button onClick={onNewSearch}>
+              <Button onClick={onNewSearch} className="w-full sm:w-auto min-h-[44px]">
                 <Search className="h-4 w-4 mr-2" />
                 Start Searching
               </Button>
             ) : (
-              <Button onClick={() => window.location.reload()}>
+              <Button onClick={() => window.location.reload()} className="w-full sm:w-auto min-h-[44px]">
                 <Search className="h-4 w-4 mr-2" />
                 Start Searching
               </Button>
@@ -390,68 +390,73 @@ export function ProductionQueryHistory({
               isError ? 'border-l-red-500' : 
               'border-l-purple-500'
             } ${isActiveSearch ? 'ring-2 ring-blue-300' : ''}`}>
-              <CardContent className="p-4">
+              <CardContent className="p-4 md:p-6">
                 {/* Entry Header */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {isProcessing ? (
-                        <Brain className="h-4 w-4 text-blue-600" />
-                      ) : isError ? (
-                        <Search className="h-4 w-4 text-red-600" />
-                      ) : (
-                        <Search className="h-4 w-4 text-purple-600" />
-                      )}
-                      <span className="font-medium text-lg">&quot;{entry.query}&quot;</span>
+                <div className="flex flex-col space-y-4 md:flex-row md:items-start md:justify-between md:space-y-0">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-y-0 md:gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        {isProcessing ? (
+                          <Brain className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                        ) : isError ? (
+                          <Search className="h-4 w-4 text-red-600 flex-shrink-0" />
+                        ) : (
+                          <Search className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                        )}
+                        <span className="font-medium text-base md:text-lg truncate">&quot;{entry.query}&quot;</span>
+                      </div>
                       
-                      {isProcessing && (
-                        <Badge variant="outline" className="text-blue-600 border-blue-600">
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                          Processing
-                        </Badge>
-                      )}
-                      {isError && (
-                        <Badge variant="outline" className="text-red-600 border-red-600">
-                          Error
-                        </Badge>
-                      )}
-                      {isCompleted && (
-                        <Badge variant="outline" className="text-green-600 border-green-600">
-                          Completed
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {isProcessing && (
+                          <Badge variant="outline" className="text-blue-600 border-blue-600">
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Processing
+                          </Badge>
+                        )}
+                        {isError && (
+                          <Badge variant="outline" className="text-red-600 border-red-600">
+                            Error
+                          </Badge>
+                        )}
+                        {isCompleted && (
+                          <Badge variant="outline" className="text-green-600 border-green-600">
+                            Completed
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600">
                       <div className="flex items-center gap-1">
-                        <Database className="h-3 w-3" />
-                        <span>{entry.datasetName}</span>
+                        <Database className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{entry.datasetName}</span>
                       </div>
                       {entry.results && (
                         <div className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
+                          <Users className="h-3 w-3 flex-shrink-0" />
                           <span>{entry.results.length} results</span>
                         </div>
                       )}
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3 flex-shrink-0" />
+                        <span>{formatTimeAgo(entry.timestamp)}</span>
+                      </div>
                       {entry.metadata?.processing_time && (
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
+                        <div className="flex items-center gap-1 hidden md:flex">
+                          <Clock className="h-3 w-3 flex-shrink-0" />
                           <span>{entry.metadata.processing_time}ms</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>{formatTimeAgo(entry.timestamp)}</span>
-                      </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:gap-2 md:ml-4">
                     {onRerunQuery && (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => onRerunQuery(entry.query, entry.datasetId)}
+                        className="w-full sm:w-auto min-h-[44px] px-4"
                       >
                         <Search className="h-3 w-3 mr-1" />
                         Rerun
@@ -461,7 +466,7 @@ export function ProductionQueryHistory({
                       variant="ghost"
                       size="sm"
                       onClick={() => deleteEntry(entry.id)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 w-full sm:w-auto min-h-[44px] px-4"
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
