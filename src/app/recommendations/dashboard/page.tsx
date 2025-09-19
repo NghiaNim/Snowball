@@ -139,15 +139,15 @@ export default function RecommendationsDashboard() {
                       ? 'bg-white shadow-sm text-blue-600' 
                       : 'hover:bg-gray-200 text-gray-700'
                   }`}
-                  onClick={() => {
-                    setActiveTab(tab.id)
-                    // Force reset when switching to query tab
-                    if (tab.id === 'query') {
-                      setForceQueryReset(true)
-                      // Reset the force flag after component has time to process it
-                      setTimeout(() => setForceQueryReset(false), 100)
-                    }
-                  }}
+                onClick={() => {
+                  setActiveTab(tab.id)
+                  // Force reset when switching to query tab, but NOT during rerun
+                  if (tab.id === 'query' && !rerunData) {
+                    setForceQueryReset(true)
+                    // Reset the force flag after component has time to process it
+                    setTimeout(() => setForceQueryReset(false), 100)
+                  }
+                }}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
                   <span className="truncate">{tab.label}</span>

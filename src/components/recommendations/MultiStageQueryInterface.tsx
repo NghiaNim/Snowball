@@ -157,6 +157,7 @@ export function MultiStageQueryInterface({
   useEffect(() => {
     if (rerunData) {
       console.log('🔄 Rerun data provided - setting up query rerun:', rerunData)
+      console.log('🔄 Query being set to:', rerunData.query)
       
       // Cancel any ongoing queries first
       cancelOngoingQuery()
@@ -174,6 +175,8 @@ export function MultiStageQueryInterface({
       setProcessingStages([])
       setHasUserInteracted(true) // Mark as interacted since we're pre-filling
       setPollingStartTime(null)
+      
+      console.log('✅ Rerun setup complete, query state should be:', rerunData.query)
       
       // Call callback to let parent know rerun setup is complete
       if (onRerunComplete) {
@@ -942,6 +945,7 @@ export function MultiStageQueryInterface({
                 placeholder="e.g., Healthcare investors for my AI startup"
                 value={query}
                 onChange={(e) => {
+                  console.log('📝 Query input changed to:', e.target.value)
                   setQuery(e.target.value)
                   setHasUserInteracted(true)
                 }}
