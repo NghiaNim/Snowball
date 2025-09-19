@@ -206,6 +206,9 @@ Provide detailed analysis for each candidate.
                 (field_match_score * weights['fieldMatches'])
             )
             
+            # Extract display name from LLM analysis or fallback to manual extraction
+            display_name = llm_analysis.get('display_name') or extract_name_from_data(candidate['data'])
+            
             enhanced_candidates.append({
                 'id': candidate['id'],
                 'data': candidate['data'],
@@ -219,7 +222,8 @@ Provide detailed analysis for each candidate.
                 'cultural_fit_assessment': llm_analysis.get('cultural_fit_assessment', ''),
                 'recommendation': llm_analysis.get('recommendation', 'Consider'),
                 'field_matches': candidate.get('field_matches', {}),
-                'match_reasons': generate_final_match_reasons(candidate, llm_analysis)
+                'match_reasons': generate_final_match_reasons(candidate, llm_analysis),
+                'display_name': display_name
             })
         
         return enhanced_candidates
@@ -299,7 +303,8 @@ def create_fallback_candidate(
         'cultural_fit_assessment': 'Unable to assess automatically',
         'recommendation': 'Consider',
         'field_matches': candidate.get('field_matches', {}),
-        'match_reasons': candidate.get('preliminary_reasons', ['Profile relevance'])
+        'match_reasons': candidate.get('preliminary_reasons', ['Profile relevance']),
+        'display_name': extract_name_from_data(candidate['data'])
     }
 
 def fallback_refinement(

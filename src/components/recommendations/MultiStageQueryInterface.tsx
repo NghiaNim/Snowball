@@ -81,6 +81,7 @@ interface EnhancedResult {
   recommendation: string
   field_matches: Record<string, string[]>
   match_reasons: string[]
+  display_name?: string
 }
 
 export function MultiStageQueryInterface({ 
@@ -97,6 +98,8 @@ export function MultiStageQueryInterface({
   const [followUpQuestions, setFollowUpQuestions] = useState<FollowUpQuestion[]>([])
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [candidateCount, setCandidateCount] = useState<number>(10)
+  const [wantExtensiveQuestions, setWantExtensiveQuestions] = useState<boolean>(false)
+  const [excludedQuestions, setExcludedQuestions] = useState<Set<string>>(new Set())
   const [processing, setProcessing] = useState(false)
   const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([])
   const [results, setResults] = useState<EnhancedResult[]>([])
@@ -642,7 +645,8 @@ export function MultiStageQueryInterface({
         body: JSON.stringify({
           stage: 'questions',
           query: query.trim(),
-          datasetSchema: datasetSchema ? formatSchemaForAI(datasetSchema) : undefined
+          datasetSchema: datasetSchema ? formatSchemaForAI(datasetSchema) : undefined,
+          extensive_questions: wantExtensiveQuestions,
         })
       })
 
@@ -946,28 +950,61 @@ export function MultiStageQueryInterface({
               />
             </div>
 
-            <div className="flex items-center justify-center gap-4">
-              <Label htmlFor="candidate-count" className="text-sm text-gray-600">Results:</Label>
-              <Input
-                id="candidate-count"
-                type="number"
-                min="1"
-                max="50"
-                value={candidateCount === 0 ? '' : candidateCount}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === '') {
-                    setCandidateCount(0);
-                  } else {
-                    const num = parseInt(value);
-                    if (!isNaN(num)) {
-                      setCandidateCount(Math.min(50, Math.max(1, num)));
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-4">
+                <Label htmlFor="candidate-count" className="text-sm text-gray-600">Results:</Label>
+                <Input
+                  id="candidate-count"
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={candidateCount === 0 ? '' : candidateCount}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setCandidateCount(0);
+                    } else {
+                      const num = parseInt(value);
+                      if (!isNaN(num)) {
+                        setCandidateCount(Math.min(50, Math.max(1, num)));
+                      }
                     }
-                  }
-                }}
-                disabled={processing}
-                className="w-20 text-center"
-              />
+                  }}
+                  disabled={processing}
+                  className="w-20 text-center"
+                />
+              </div>
+              
+              {/* Extensive Questions Option */}
+              <div className="flex items-center justify-center gap-4">
+                <label className="relative flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={wantExtensiveQuestions}
+                    onChange={(e) => setWantExtensiveQuestions(e.target.checked)}
+                    disabled={processing}
+                    className="sr-only"
+                  />
+                  <div className={`w-12 h-6 rounded-full border-2 transition-all duration-200 ${
+                    wantExtensiveQuestions
+                      ? 'bg-blue-500 border-blue-500' 
+                      : 'bg-gray-200 border-gray-300'
+                  } ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full transition-all duration-200 transform ${
+                      wantExtensiveQuestions 
+                        ? 'translate-x-7' 
+                        : 'translate-x-1'
+                    } mt-0.5`} />
+                  </div>
+                  <span className={`ml-3 text-sm font-medium transition-colors ${
+                    wantExtensiveQuestions 
+                      ? 'text-blue-600' 
+                      : 'text-gray-600'
+                  } ${processing ? 'opacity-50' : ''}`}>
+                    Ask me extensive follow-up questions for better results
+                  </span>
+                </label>
+              </div>
             </div>
 
             <Button 
@@ -1007,48 +1044,116 @@ export function MultiStageQueryInterface({
 
           <div className="max-w-2xl mx-auto space-y-6">
             {followUpQuestions.map((question, index) => (
-              <div key={question.id} className="bg-white rounded-lg border border-gray-200 p-5">
+              <div key={question.id} className={`rounded-lg border p-5 transition-colors ${
+                excludedQuestions.has(question.id) 
+                  ? 'border-gray-200 bg-gray-50 opacity-60' 
+                  : 'border-gray-200 bg-white'
+              }`}>
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                     <span className="text-xs font-medium text-blue-600">{index + 1}</span>
                   </div>
                   <div className="flex-1 space-y-3">
-                    <h4 className="font-medium text-gray-900">
-                      {question.question}
-                      {question.required && <span className="text-red-500 ml-1">*</span>}
-                    </h4>
-                    
-                    <div className="space-y-3">
-                      <div className="space-y-2">
-                        {question.options.map((option) => (
-                          <label key={option} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              name={question.id}
-                              value={option}
-                              checked={getMultipleChoiceValues(question.id).includes(option)}
-                              onChange={(e) => handleMultipleChoiceChange(question.id, option, e.target.checked)}
-                              className="text-blue-600 border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-gray-700">{option}</span>
-                          </label>
-                        ))}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <h4 className={`font-medium transition-colors ${
+                          !excludedQuestions.has(question.id) 
+                            ? 'text-gray-900' 
+                            : 'text-gray-500'
+                        }`}>
+                          {question.question}
+                          {question.required && <span className="text-red-500 ml-1">*</span>}
+                        </h4>
                       </div>
                       
-                      {/* Show text input when "Other" is selected */}
-                      {getMultipleChoiceValues(question.id).includes('Other') && (
-                        <div className="ml-6 mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                          <Label className="text-sm text-blue-800 mb-2 block">Please specify:</Label>
-                          <Input
-                            value={answers[`${question.id}_other_text`] || ''}
-                            onChange={(e) => handleOtherTextChange(question.id, e.target.value)}
-                            placeholder="Type your custom answer here..."
-                            className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
-                            autoFocus
+                      {/* Modern toggle-style checkbox on the right */}
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        {excludedQuestions.has(question.id) && (
+                          <span className="text-xs text-gray-500 bg-gray-200 px-3 py-1 rounded-full font-medium">
+                            Excluded
+                          </span>
+                        )}
+                        <label className="relative flex items-center cursor-pointer">
+                          <span className={`mr-3 text-sm font-medium transition-colors ${
+                            !excludedQuestions.has(question.id) 
+                              ? 'text-blue-600' 
+                              : 'text-gray-500'
+                          }`}>
+                            {!excludedQuestions.has(question.id) ? 'Include' : 'Skip'}
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={!excludedQuestions.has(question.id)}
+                            onChange={(e) => {
+                              const newExcluded = new Set(excludedQuestions)
+                              if (e.target.checked) {
+                                newExcluded.delete(question.id)
+                              } else {
+                                newExcluded.add(question.id)
+                                // Clear answers for excluded questions
+                                setAnswers(prev => {
+                                  const newAnswers = { ...prev }
+                                  delete newAnswers[question.id]
+                                  delete newAnswers[`${question.id}_other_text`]
+                                  return newAnswers
+                                })
+                              }
+                              setExcludedQuestions(newExcluded)
+                            }}
+                            className="sr-only"
                           />
-                        </div>
-                      )}
+                          <div className={`w-12 h-6 rounded-full border-2 transition-all duration-200 ${
+                            !excludedQuestions.has(question.id)
+                              ? 'bg-blue-500 border-blue-500' 
+                              : 'bg-gray-200 border-gray-300'
+                          }`}>
+                            <div className={`w-4 h-4 bg-white rounded-full transition-all duration-200 transform ${
+                              !excludedQuestions.has(question.id) 
+                                ? 'translate-x-7' 
+                                : 'translate-x-1'
+                            } mt-0.5`} />
+                          </div>
+                        </label>
+                      </div>
                     </div>
+                    
+                    {!excludedQuestions.has(question.id) ? (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          {question.options.map((option) => (
+                            <label key={option} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                name={question.id}
+                                value={option}
+                                checked={getMultipleChoiceValues(question.id).includes(option)}
+                                onChange={(e) => handleMultipleChoiceChange(question.id, option, e.target.checked)}
+                                className="text-blue-600 border-gray-300 focus:ring-blue-500"
+                              />
+                              <span className="text-gray-700">{option}</span>
+                            </label>
+                          ))}
+                        </div>
+                        
+                        {/* Show text input when "Other" is selected */}
+                        {getMultipleChoiceValues(question.id).includes('Other') && (
+                          <div className="ml-6 mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <Label className="text-sm text-blue-800 mb-2 block">Please specify:</Label>
+                            <Input
+                              value={answers[`${question.id}_other_text`] || ''}
+                              onChange={(e) => handleOtherTextChange(question.id, e.target.value)}
+                              placeholder="Type your custom answer here..."
+                              className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                              autoFocus
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500 italic">
+                        This question has been excluded from your search
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1213,7 +1318,7 @@ export function MultiStageQueryInterface({
                       <div className="flex items-center gap-2">
                         <User className="h-5 w-5 text-gray-400" />
                         <h3 className="font-medium text-lg">
-                          {String(getFieldValue(result.data, ['name', 'full_name', 'fullname'])) || `Candidate ${index + 1}`}
+                          {result.display_name || `Candidate ${index + 1}`}
                         </h3>
                       </div>
                       <div className="flex items-center gap-2">

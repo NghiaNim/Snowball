@@ -38,7 +38,7 @@ except Exception as e:
     llm = None
     print(f'⚠️ Failed to initialize AI Agent OpenAI client: {str(e)}')
 
-def generate_follow_up_questions(query: str, dataset_schema: Optional[Dict] = None) -> List[Dict[str, Any]]:
+def generate_follow_up_questions(query: str, dataset_schema: Optional[Dict] = None, extensive_questions: bool = False) -> List[Dict[str, Any]]:
     """
     Generate follow-up questions to refine the search query
     """
