@@ -22,7 +22,6 @@ import {
   Zap,
   Database,
   RefreshCw,
-  History,
   CheckCircle
 } from 'lucide-react'
 import { formatSchemaForAI, type DatasetSchema } from '@/lib/dataset-analysis'
@@ -402,7 +401,7 @@ export function MultiStageQueryInterface({
             // Update processing stages based on cloud function feedback
             if (currentStage && stageMessage) {
               setProcessingStages(prev => {
-                const stageMap = {
+                const stageMap: Record<string, number> = {
                   'questions': 0,
                   'criteria': 0,
                   'CRITERIA': 0,
@@ -803,9 +802,6 @@ export function MultiStageQueryInterface({
   }
 
 
-  const handleAnswerChange = (questionId: string, value: string) => {
-    setAnswers(prev => ({ ...prev, [questionId]: value }))
-  }
 
   const handleOtherTextChange = (questionId: string, text: string) => {
     setAnswers(prev => ({ ...prev, [`${questionId}_other_text`]: text }))
@@ -1106,7 +1102,7 @@ export function MultiStageQueryInterface({
           
           {/* Progress Stages */}
           <div className="max-w-2xl mx-auto space-y-4 mb-8">
-            {processingStages.map((stage, index) => (
+            {processingStages.map((stage) => (
               <div key={stage.stage} className="flex items-center gap-4 p-4 bg-white border rounded-lg">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                   stage.completed 
