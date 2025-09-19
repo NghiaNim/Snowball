@@ -350,7 +350,12 @@ export function MultiStageQueryInterface({
 
     const POLLING_TIMEOUT = 5 * 60 * 1000 // 5 minutes timeout
     
+    let timeoutId: NodeJS.Timeout | null = null
+    let isCancelled = false
+    
     const pollForCompletion = async () => {
+      if (isCancelled) return
+      
       try {
         // Check if we've exceeded the timeout
         if (pollingStartTime && Date.now() - pollingStartTime > POLLING_TIMEOUT) {
@@ -439,6 +444,8 @@ export function MultiStageQueryInterface({
     const maxPollCount = 150 // Maximum polls (10 minutes at 4s intervals)
     
     const smartPoll = () => {
+      if (isCancelled) return
+      
       // Only poll if document is visible to reduce unnecessary requests
       if (!document.hidden) {
         pollForCompletion()
@@ -449,8 +456,8 @@ export function MultiStageQueryInterface({
       // Exponential backoff: start at 3s, increase to 5s after 30 polls
       const baseInterval = pollCount > 30 ? 5000 : 3000
       
-      if (pollCount < maxPollCount) {
-        setTimeout(smartPoll, baseInterval)
+      if (pollCount < maxPollCount && !isCancelled) {
+        timeoutId = setTimeout(smartPoll, baseInterval)
       } else {
         console.warn('⏰ Maximum polling attempts reached')
         setError('Search is taking longer than expected. Please check Query History or try again.')
@@ -465,7 +472,10 @@ export function MultiStageQueryInterface({
     
     // Return cleanup function
     return () => {
-      pollCount = maxPollCount // Stop polling
+      isCancelled = true
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
     }
   }, [activeQueryId, processing, pollingStartTime])
 
@@ -858,8 +868,18 @@ export function MultiStageQueryInterface({
                 type="number"
                 min="1"
                 max="50"
-                value={candidateCount}
-                onChange={(e) => setCandidateCount(Math.min(50, Math.max(1, parseInt(e.target.value) || 10)))}
+                value={candidateCount === 0 ? '' : candidateCount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '') {
+                    setCandidateCount(0);
+                  } else {
+                    const num = parseInt(value);
+                    if (!isNaN(num)) {
+                      setCandidateCount(Math.min(50, Math.max(1, num)));
+                    }
+                  }
+                }}
                 disabled={processing}
                 className="w-20 text-center"
               />
@@ -971,7 +991,7 @@ export function MultiStageQueryInterface({
               </Button>
               <Button 
                 onClick={handleFinalSearch}
-                disabled={processing}
+                disabled={processing || candidateCount === 0}
                 className="flex-2 bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {processing ? (
