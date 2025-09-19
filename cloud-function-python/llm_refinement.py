@@ -107,11 +107,18 @@ SCORING GUIDELINES:
 
 Be thorough but concise. Focus on qualitative insights that go beyond keyword matching.
 
+IMPORTANT: For the "display_name" field, extract the person's full name from their profile data. Look for:
+- "first_name" + "last_name" combined
+- "name", "full_name", "fullname" fields
+- If no clear name found, use "N/A"
+- DO NOT use company names, locations, or job titles as the display name
+
 Return your analysis as a JSON object with this structure:
 {{
   "candidates": [
     {{
       "candidate_id": "string",
+      "display_name": "John Smith",  // Extract the person's full name from the profile data
       "llm_relevance_score": 0.85,
       "detailed_analysis": "Comprehensive analysis of why this candidate fits...",
       "match_strengths": ["Strong healthcare experience", "Startup founding background"],
@@ -208,6 +215,7 @@ Provide detailed analysis for each candidate.
             
             # Extract display name from LLM analysis or fallback to manual extraction
             display_name = llm_analysis.get('display_name') or extract_name_from_data(candidate['data'])
+            print(f'🏷️ Display name for candidate {candidate["id"]}: "{display_name}" (from LLM: {bool(llm_analysis.get("display_name"))})')
             
             enhanced_candidates.append({
                 'id': candidate['id'],
@@ -267,6 +275,76 @@ def generate_final_match_reasons(
         reasons.append(f"Matches in {', '.join(field_types)} criteria")
     
     return reasons[:5]  # Limit to top 5 reasons
+
+def extract_name_from_data(data: Dict[str, Any]) -> str:
+    """
+    Intelligently extract a display name from candidate data
+    """
+    # Priority order for name extraction
+    name_fields = [
+        # Full name fields
+        'name', 'full_name', 'fullname', 'display_name',
+        # First + Last name combination
+        ('first_name', 'last_name'),
+        ('firstName', 'lastName'),
+        ('fname', 'lname'),
+        # Individual name fields
+        'first_name', 'firstName', 'fname',
+        'last_name', 'lastName', 'lname'
+    ]
+    
+    for field in name_fields:
+        if isinstance(field, tuple):
+            # Handle first + last name combination
+            first = data.get(field[0], '').strip()
+            last = data.get(field[1], '').strip()
+            if first and last:
+                return f"{first} {last}"
+            elif first:
+                return first
+            elif last:
+                return last
+        else:
+            # Handle single name fields
+            value = data.get(field, '').strip()
+            if value and not is_location_or_company(value):
+                return value
+    
+    print(f'⚠️ Could not extract name from data: {list(data.keys())}')
+    return "N/A"
+
+def is_location_or_company(value: str) -> bool:
+    """
+    Check if a value looks like a location or company name rather than a person's name
+    """
+    location_indicators = [
+        'united states', 'usa', 'uk', 'canada', 'california', 'new york', 
+        'san francisco', 'london', 'toronto', 'seattle', 'boston', 'chicago',
+        'hong kong', 'singapore', 'australia', 'germany', 'france'
+    ]
+    
+    company_indicators = [
+        'inc', 'llc', 'corp', 'ltd', 'technologies', 'solutions', 'systems',
+        'ventures', 'capital', 'partners', 'group', 'company', 'co.'
+    ]
+    
+    value_lower = value.lower()
+    
+    # Check if it's a known location
+    for location in location_indicators:
+        if location in value_lower:
+            return True
+    
+    # Check if it contains company indicators
+    for indicator in company_indicators:
+        if indicator in value_lower:
+            return True
+    
+    # Check if it looks like a state format (e.g., "CA", "NY")
+    if len(value) == 2 and value.isupper():
+        return True
+    
+    return False
 
 def create_fallback_candidate(
     candidate: Dict[str, Any], 

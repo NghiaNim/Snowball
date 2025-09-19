@@ -40,6 +40,7 @@ interface QueryHistoryEntry {
     data: Record<string, unknown>
     match_score: number
     match_reasons: string[]
+    display_name?: string
   }>
   metadata?: {
     total_found?: number
@@ -200,10 +201,21 @@ export function QueryHistory({
     if (!results || results.length === 0) return 'No results found'
     
     const topResult = results[0]
-    const nameField = Object.keys(topResult.data).find(key => 
-      key.toLowerCase().includes('name')
-    )
-    const name = nameField ? topResult.data[nameField] : 'Person'
+    
+    // Use display_name if available, otherwise extract from data
+    let name = 'Person'
+    if (topResult.display_name) {
+      name = topResult.display_name
+    } else {
+      // Fallback: look for name fields in data
+      const nameField = Object.keys(topResult.data).find(key => {
+        const keyLower = key.toLowerCase()
+        return keyLower === 'name' || keyLower === 'full_name' || keyLower === 'fullname'
+      })
+      if (nameField && topResult.data[nameField]) {
+        name = String(topResult.data[nameField])
+      }
+    }
     
     if (results.length === 1) {
       return `Found: ${name}`
