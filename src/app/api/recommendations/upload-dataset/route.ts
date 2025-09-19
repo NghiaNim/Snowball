@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
     const uploadedDataset = await uploadDatasetToGCS(buffer, file.name, {
       fileSize: file.size,
       fileType,
+      customName: datasetName,
     })
 
     console.log(`✅ Successfully uploaded dataset: ${file.name}`)

@@ -83,15 +83,27 @@ def process_batch_with_llm(
     system_prompt = f"""
 You are an expert recruiter and talent evaluator. Your job is to analyze candidates and provide detailed assessments of their fit for a specific search.
 
+CRITICAL: These candidates have already passed hard constraint filtering. Your job is to rank and assess them for soft criteria and overall fit.
+
 SEARCH CRITERIA:
 {json.dumps(criteria, indent=2)}
 
+HARD CONSTRAINTS (already satisfied):
+{json.dumps(criteria.get('hardConstraints', {}), indent=2)}
+
 For each candidate, provide:
-1. Detailed relevance analysis based on the contextual criteria
-2. Specific reasons why they match or don't match
+1. Detailed relevance analysis based on soft criteria and contextual fit
+2. Specific reasons why they are a good/poor match beyond the hard constraints
 3. Assessment of cultural fit, working style, and career stage alignment
-4. Overall relevance score (0.0 to 1.0)
+4. Overall relevance score (0.0 to 1.0) - be critical and use the full range
 5. Key strengths and potential concerns
+
+SCORING GUIDELINES:
+- 0.9-1.0: Perfect match, exceptional candidate
+- 0.7-0.8: Strong match, highly recommended
+- 0.5-0.6: Good match, recommended with caveats
+- 0.3-0.4: Weak match, consider carefully
+- 0.0-0.2: Poor match, not recommended
 
 Be thorough but concise. Focus on qualitative insights that go beyond keyword matching.
 

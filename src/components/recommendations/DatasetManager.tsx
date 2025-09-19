@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { 
   Database, 
   FileText, 
@@ -13,10 +14,11 @@ import {
   CheckCircle, 
   Clock,
   AlertCircle,
-  Cloud
+  Cloud,
+  Eye
 } from 'lucide-react'
 
-interface ProductionDatasetManagerProps {
+interface DatasetManagerProps {
   onSelectDataset: (dataset: UploadedDataset) => void
   onDatasetsChange?: (datasets: UploadedDataset[]) => void
 }
@@ -24,6 +26,7 @@ interface ProductionDatasetManagerProps {
 interface UploadedDataset {
   id: string
   originalName: string
+  customName?: string
   gcsPath: string
   uploadedAt: string
   fileSize: number
@@ -35,11 +38,12 @@ interface UploadedDataset {
   }
 }
 
-export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: ProductionDatasetManagerProps) {
+export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetManagerProps) {
   const [datasets, setDatasets] = useState<UploadedDataset[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deletingDataset, setDeletingDataset] = useState<string | null>(null)
+  const [previewData, setPreviewData] = useState<{ dataset: UploadedDataset; content: string[] } | null>(null)
 
   const fetchDatasets = useCallback(async () => {
     setIsLoading(true)
@@ -97,6 +101,25 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
       setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete dataset')
     } finally {
       setDeletingDataset(null)
+    }
+  }
+
+  const handlePreviewDataset = async (dataset: UploadedDataset) => {
+    try {
+      const response = await fetch(`/api/recommendations/preview-dataset?gcsPath=${encodeURIComponent(dataset.gcsPath)}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to preview dataset')
+      }
+      
+      const result = await response.json()
+      setPreviewData({
+        dataset,
+        content: result.preview || []
+      })
+    } catch (error) {
+      console.error('Error previewing dataset:', error)
+      setError(error instanceof Error ? error.message : 'Failed to preview dataset')
     }
   }
 
@@ -228,8 +251,13 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-y-0 md:space-x-2 mb-2">
                         <h3 className="text-base md:text-lg font-medium text-gray-900 truncate">
-                          {dataset.originalName}
+                          {dataset.customName || dataset.originalName}
                         </h3>
+                        {dataset.customName && (
+                          <p className="text-xs text-gray-500 truncate">
+                            File: {dataset.originalName}
+                          </p>
+                        )}
                         <div className="flex items-center space-x-2">
                           {getStatusIcon(dataset.status)}
                           {getStatusBadge(dataset.status)}
@@ -243,13 +271,20 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
                         <span className="hidden md:inline">Uploaded: {formatDate(dataset.uploadedAt)}</span>
                       </div>
                       
-                      <div className="mt-2 text-xs text-gray-400 truncate">
-                        GCS Path: {dataset.gcsPath}
-                      </div>
                     </div>
                   </div>
                   
                   <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-2 md:ml-4">
+                    <Button
+                      onClick={() => handlePreviewDataset(dataset)}
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto min-h-[44px] px-4"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Preview
+                    </Button>
+                    
                     <Button
                       onClick={() => onSelectDataset(dataset)}
                       size="sm"
@@ -280,6 +315,41 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
           ))}
         </div>
       )}
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewData} onOpenChange={() => setPreviewData(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Preview: {previewData?.dataset.customName || previewData?.dataset.originalName}
+            </DialogTitle>
+            <DialogDescription>
+              First 10 rows of your dataset
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="overflow-auto max-h-[60vh]">
+            {previewData?.content && previewData.content.length > 0 ? (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <pre className="text-xs whitespace-pre-wrap font-mono">
+                  {previewData.content.slice(0, 10).join('\n')}
+                </pre>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No preview available
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setPreviewData(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

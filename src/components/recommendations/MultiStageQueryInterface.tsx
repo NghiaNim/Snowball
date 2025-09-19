@@ -22,13 +22,15 @@ import {
   Zap,
   Database,
   RefreshCw,
-  History
+  History,
+  CheckCircle
 } from 'lucide-react'
 import { formatSchemaForAI, type DatasetSchema } from '@/lib/dataset-analysis'
 
 interface SelectedDataset {
   id: string
   originalName: string
+  customName?: string
   gcsPath: string
   uploadedAt: string
   fileSize: number
@@ -55,8 +57,8 @@ interface MultiStageQueryProps {
 interface FollowUpQuestion {
   id: string
   question: string
-  type: 'single_choice' | 'multiple_choice' | 'text'
-  options?: string[]
+  type: 'multiple_choice'
+  options: string[]
   required: boolean
 }
 
@@ -388,27 +390,47 @@ export function MultiStageQueryInterface({
               progress: 100, 
               completed: true 
             })))
-          } else if (query.status === 'processing' && query.metadata?.current_stage) {
+          } else if (query.status === 'processing') {
             // Update progress from cloud function
-            const currentStage = query.metadata.current_stage
-            const stageMessage = query.metadata.stage_message
-            const progress = query.metadata.progress || 0
+            const currentStage = query.metadata?.current_stage
+            const stageMessage = query.metadata?.stage_message
+            const progress = query.metadata?.progress || 0
             
             console.log(`📊 Cloud function progress: ${currentStage} - ${stageMessage} (${progress}%)`)
+            console.log(`🔍 Full metadata:`, query.metadata)
             
             // Update processing stages based on cloud function feedback
-            if (stageMessage) {
+            if (currentStage && stageMessage) {
               setProcessingStages(prev => {
                 const stageMap = {
+                  'questions': 0,
+                  'criteria': 0,
                   'CRITERIA': 0,
-                  'DATASET': 1, 
+                  'dataset': 1,
+                  'DATASET': 1,
+                  'search': 2,
+                  'bm25': 2,
                   'BM25': 2,
-                  'LLM': 3
+                  'llm': 3,
+                  'LLM': 3,
+                  'refinement': 3
                 }
                 
-                const stageIndex = stageMap[currentStage.split(' ')[1] as keyof typeof stageMap] // Extract stage name
+                // Extract stage name - handle various formats
+                let stageName = currentStage.toLowerCase()
+                if (currentStage.includes(':')) {
+                  stageName = currentStage.split(':')[0].toLowerCase().trim()
+                }
+                if (currentStage.includes(' ')) {
+                  const parts = currentStage.split(' ')
+                  stageName = parts[parts.length - 1].toLowerCase()
+                }
+                
+                console.log(`🎯 Mapped stage "${currentStage}" → "${stageName}"`)
+                
+                const stageIndex = stageMap[stageName]
                 if (stageIndex !== undefined) {
-                  return prev.map((stage, index) => {
+                  const updatedStages = prev.map((stage, index) => {
                     if (index < stageIndex) {
                       return { ...stage, progress: 100, completed: true }
                     } else if (index === stageIndex) {
@@ -416,9 +438,15 @@ export function MultiStageQueryInterface({
                     }
                     return stage
                   })
+                  console.log(`🔄 Updated stages:`, updatedStages)
+                  return updatedStages
+                } else {
+                  console.warn(`❌ Unknown stage: ${stageName}`)
                 }
                 return prev
               })
+            } else {
+              console.warn(`⚠️ Missing stage info: currentStage=${currentStage}, stageMessage=${stageMessage}`)
             }
           } else if (query.status === 'error') {
             // Query failed
@@ -453,8 +481,8 @@ export function MultiStageQueryInterface({
       
       pollCount++
       
-      // Exponential backoff: start at 3s, increase to 5s after 30 polls
-      const baseInterval = pollCount > 30 ? 5000 : 3000
+      // Faster polling for better progress updates: start at 2s, increase to 4s after 20 polls
+      const baseInterval = pollCount > 20 ? 4000 : 2000
       
       if (pollCount < maxPollCount && !isCancelled) {
         timeoutId = setTimeout(smartPoll, baseInterval)
@@ -478,6 +506,45 @@ export function MultiStageQueryInterface({
       }
     }
   }, [activeQueryId, processing, pollingStartTime])
+
+  // Auto-refresh when user returns to tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && activeQueryId && processing) {
+        // Trigger a fresh poll when user returns to the tab
+        const pollOnce = async () => {
+          try {
+            const response = await fetch(`/api/recommendations/query-history/${activeQueryId}`)
+            if (response.ok) {
+              const data = await response.json()
+              const query = data.query
+              
+              if (query.status === 'completed' && query.results) {
+                setResults(query.results)
+                setMetadata(query.metadata)
+                setProcessing(false)
+                setCurrentStage('results')
+                setActiveQueryId(null)
+                setPollingStartTime(null)
+                setProcessingStages(prev => prev.map(stage => ({ 
+                  ...stage, 
+                  progress: 100, 
+                  completed: true 
+                })))
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to refresh on visibility change:', error)
+          }
+        }
+        
+        pollOnce()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [activeQueryId, processing])
 
   // Update UI every 5 seconds when processing to show elapsed time (reduced frequency)
   useEffect(() => {
@@ -586,8 +653,8 @@ export function MultiStageQueryInterface({
 
       const data = await response.json()
       
-      if (data.success && data.questions?.questions) {
-        setFollowUpQuestions(data.questions.questions)
+      if (data.success && data.questions && Array.isArray(data.questions)) {
+        setFollowUpQuestions(data.questions)
         setCurrentStage('questions')
       } else {
         throw new Error(data.error || 'Failed to generate follow-up questions')
@@ -632,7 +699,7 @@ export function MultiStageQueryInterface({
       const actualQueryId = await saveToHistory({
         query: query.trim(),
         datasetId: selectedDataset.id,
-        datasetName: selectedDataset.originalName,
+        datasetName: selectedDataset.customName || selectedDataset.originalName,
         timestamp: new Date().toISOString(),
         status: 'processing',
         processingStages: initialStages,
@@ -744,6 +811,28 @@ export function MultiStageQueryInterface({
     setAnswers(prev => ({ ...prev, [`${questionId}_other_text`]: text }))
   }
 
+  const getMultipleChoiceValues = (questionId: string): string[] => {
+    const value = answers[questionId]
+    if (!value) return []
+    return Array.isArray(value) ? value : value.split(', ').filter(v => v.trim() !== '')
+  }
+
+  const handleMultipleChoiceChange = (questionId: string, option: string, checked: boolean) => {
+    const currentValues = getMultipleChoiceValues(questionId)
+    let newValues: string[]
+    
+    if (checked) {
+      newValues = [...currentValues, option]
+    } else {
+      newValues = currentValues.filter(v => v !== option)
+    }
+    
+    setAnswers(prev => ({
+      ...prev,
+      [questionId]: newValues.join(', ')
+    }))
+  }
+
   const getFieldValue = (person: Record<string, unknown>, fieldPattern: string[]) => {
     const field = Object.keys(person).find(key => 
       fieldPattern.some(pattern => key.toLowerCase().includes(pattern.toLowerCase()))
@@ -787,7 +876,7 @@ export function MultiStageQueryInterface({
               <Database className="h-4 w-4 text-blue-600" />
             </div>
             <div>
-              <h3 className="font-medium text-gray-900">{selectedDataset.originalName}</h3>
+              <h3 className="font-medium text-gray-900">{selectedDataset.customName || selectedDataset.originalName}</h3>
               <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
                 {datasetSchema && (
                   <>
@@ -887,7 +976,7 @@ export function MultiStageQueryInterface({
 
             <Button 
               onClick={handleInitialQuery} 
-              disabled={!query.trim() || processing}
+              disabled={!query.trim() || processing || candidateCount === 0}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
             >
               {processing ? (
@@ -933,48 +1022,37 @@ export function MultiStageQueryInterface({
                       {question.required && <span className="text-red-500 ml-1">*</span>}
                     </h4>
                     
-                    {question.type === 'single_choice' && question.options && (
-                      <div className="space-y-3">
-                        <div className="space-y-2">
-                          {question.options.map((option) => (
-                            <label key={option} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                              <input
-                                type="radio"
-                                name={question.id}
-                                value={option}
-                                checked={answers[question.id] === option}
-                                onChange={() => handleAnswerChange(question.id, option)}
-                                className="text-blue-600 border-gray-300 focus:ring-blue-500"
-                              />
-                              <span className="text-gray-700">{option}</span>
-                            </label>
-                          ))}
-                        </div>
-                        
-                        {/* Show text input when "Other" is selected */}
-                        {answers[question.id] === 'Other' && (
-                          <div className="ml-6 mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <Label className="text-sm text-blue-800 mb-2 block">Please specify:</Label>
-                            <Input
-                              value={answers[`${question.id}_other_text`] || ''}
-                              onChange={(e) => handleOtherTextChange(question.id, e.target.value)}
-                              placeholder="Type your custom answer here..."
-                              className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
-                              autoFocus
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        {question.options.map((option) => (
+                          <label key={option} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              name={question.id}
+                              value={option}
+                              checked={getMultipleChoiceValues(question.id).includes(option)}
+                              onChange={(e) => handleMultipleChoiceChange(question.id, option, e.target.checked)}
+                              className="text-blue-600 border-gray-300 focus:ring-blue-500"
                             />
-                          </div>
-                        )}
+                            <span className="text-gray-700">{option}</span>
+                          </label>
+                        ))}
                       </div>
-                    )}
-                    
-                    {question.type === 'text' && (
-                      <Input
-                        value={answers[question.id] || ''}
-                        onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                        placeholder="Type your answer..."
-                        className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                      />
-                    )}
+                      
+                      {/* Show text input when "Other" is selected */}
+                      {getMultipleChoiceValues(question.id).includes('Other') && (
+                        <div className="ml-6 mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <Label className="text-sm text-blue-800 mb-2 block">Please specify:</Label>
+                          <Input
+                            value={answers[`${question.id}_other_text`] || ''}
+                            onChange={(e) => handleOtherTextChange(question.id, e.target.value)}
+                            placeholder="Type your custom answer here..."
+                            className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 bg-white"
+                            autoFocus
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1011,20 +1089,94 @@ export function MultiStageQueryInterface({
         </div>
       )}
 
-      {/* Stage 3: Processing - Redirected to History */}
+      {/* Stage 3: Processing */}
       {currentStage === 'processing' && (
-        <div className="text-center py-12">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <History className="h-6 w-6 text-green-600" />
+        <div className="py-8">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-4">
+              <Loader2 className="h-6 w-6 text-blue-600 animate-spin mr-3" />
+              <span className="text-lg font-medium text-gray-900">
+                AI Search in Progress
+              </span>
+            </div>
+            <p className="text-gray-500 text-sm max-w-md mx-auto">
+              Our AI is analyzing your query and searching through the dataset for the best matches.
+            </p>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Search Started Successfully!
-          </h3>
-          <p className="text-gray-500 text-sm max-w-md mx-auto mb-6">
-            Your AI search is now running. You can view real-time progress and results in the <strong>Query History</strong> tab.
-          </p>
           
-          <div className="space-y-2">
+          {/* Progress Stages */}
+          <div className="max-w-2xl mx-auto space-y-4 mb-8">
+            {processingStages.map((stage, index) => (
+              <div key={stage.stage} className="flex items-center gap-4 p-4 bg-white border rounded-lg">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  stage.completed 
+                    ? 'bg-green-100 text-green-600' 
+                    : stage.progress > 0 
+                      ? 'bg-blue-100 text-blue-600' 
+                      : 'bg-gray-100 text-gray-400'
+                }`}>
+                  {stage.completed ? (
+                    <CheckCircle className="w-5 h-5" />
+                  ) : stage.progress > 0 ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border-2 border-current opacity-30" />
+                  )}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className={`font-medium ${
+                      stage.completed 
+                        ? 'text-green-900' 
+                        : stage.progress > 0 
+                          ? 'text-blue-900' 
+                          : 'text-gray-500'
+                    }`}>
+                      {stage.stage}
+                    </h3>
+                    <span className={`text-sm font-medium ${
+                      stage.completed 
+                        ? 'text-green-600' 
+                        : stage.progress > 0 
+                          ? 'text-blue-600' 
+                          : 'text-gray-400'
+                    }`}>
+                      {stage.completed ? '100%' : `${Math.round(stage.progress)}%`}
+                    </span>
+                  </div>
+                  
+                  <p className={`text-sm mb-2 ${
+                    stage.completed 
+                      ? 'text-green-700' 
+                      : stage.progress > 0 
+                        ? 'text-blue-700' 
+                        : 'text-gray-500'
+                  }`}>
+                    {stage.message}
+                  </p>
+                  
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-500 ${
+                        stage.completed 
+                          ? 'bg-green-500' 
+                          : stage.progress > 0 
+                            ? 'bg-blue-500' 
+                            : 'bg-gray-300'
+                      }`}
+                      style={{ width: `${stage.completed ? 100 : stage.progress}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="text-center space-y-2">
+            <p className="text-sm text-gray-500">
+              Search will complete automatically. You can start a new search or check the Query History tab.
+            </p>
             <Button 
               variant="outline" 
               onClick={resetComponentState}

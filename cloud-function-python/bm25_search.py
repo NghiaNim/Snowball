@@ -12,13 +12,27 @@ from rank_bm25 import BM25Okapi
 
 def search_with_bm25(people: List[Dict[str, Any]], criteria: Dict[str, Any], top_k: int = 50) -> List[Dict[str, Any]]:
     """
-    BM25-based text search for fast candidate filtering
+    BM25-based text search with hard constraint pre-filtering
     """
     try:
         print(f"🔍 Starting BM25 search on {len(people)} records for top {top_k} results")
 
-        # Step 1: Create searchable documents from people profiles
-        documents = [create_searchable_document(person) for person in people]
+        # Step 0: Apply hard constraints first
+        hard_constraints = criteria.get('hardConstraints', {})
+        if hard_constraints and any(hard_constraints.values()):
+            print(f"🚫 Applying hard constraints: {hard_constraints}")
+            filtered_people = apply_hard_constraints(people, hard_constraints)
+            print(f"📊 After hard constraint filtering: {len(filtered_people)} candidates remain")
+            
+            # If no one passes hard constraints, return empty
+            if not filtered_people:
+                print("❌ No candidates pass hard constraints - returning empty results")
+                return []
+        else:
+            filtered_people = people
+        
+        # Step 1: Create searchable documents from filtered people
+        documents = [create_searchable_document(person) for person in filtered_people]
         
         # Step 2: Tokenize documents for BM25
         tokenized_docs = [doc.split() for doc in documents]
@@ -34,12 +48,14 @@ def search_with_bm25(people: List[Dict[str, Any]], criteria: Dict[str, Any], top
         tokenized_query = search_query.split()
         scores = bm25.get_scores(tokenized_query)
         
-        # Step 6: Create results with scores and apply filters
+        # Step 6: Apply minimum score threshold (lowered for more flexibility)
+        MIN_SCORE_THRESHOLD = 0.1  # Lowered threshold for more flexible matching
+        
         scored_results = []
         for i, score in enumerate(scores):
-            if score > 0 and passes_hard_filters(people[i], criteria):
+            if score >= MIN_SCORE_THRESHOLD and passes_soft_filters(filtered_people[i], criteria):
                 scored_results.append({
-                    'person': people[i],
+                    'person': filtered_people[i],
                     'bm25_score': float(score),
                     'index': i
                 })
@@ -128,14 +144,94 @@ def build_bm25_query(criteria: Dict[str, Any]) -> str:
     
     return ' '.join(query_parts)
 
-def passes_hard_filters(person: Dict[str, Any], criteria: Dict[str, Any]) -> bool:
+def apply_hard_constraints(people: List[Dict[str, Any]], hard_constraints: Dict[str, List[str]]) -> List[Dict[str, Any]]:
     """
-    Apply hard filters (exclusions and requirements)
+    Apply hard constraints to filter the dataset before BM25 search
+    """
+    filtered_people = []
+    
+    for person in people:
+        if passes_hard_constraints(person, hard_constraints):
+            filtered_people.append(person)
+    
+    return filtered_people
+
+def passes_hard_constraints(person: Dict[str, Any], hard_constraints: Dict[str, List[str]]) -> bool:
+    """
+    Check if a person passes all hard constraints (name, location, title, company)
+    """
+    person_text = json.dumps(person).lower()
+    
+    # Check name matches
+    name_matches = hard_constraints.get('nameMatches', [])
+    if name_matches:
+        has_name_match = False
+        for required_name in name_matches:
+            # Check in various name fields
+            name_fields = ['name', 'full_name', 'fullname', 'first_name', 'last_name']
+            for field in name_fields:
+                if field in person and person[field]:
+                    if required_name.lower() in person[field].lower():
+                        has_name_match = True
+                        break
+            if has_name_match:
+                break
+        
+        if not has_name_match:
+            print(f"❌ Name constraint failed for {person.get('name', 'unknown')}. Required: {name_matches}")
+            return False
+    
+    # Check location requirements
+    location_requirements = hard_constraints.get('locationRequirements', [])
+    if location_requirements:
+        has_location_match = any(
+            location.lower() in person_text 
+            for location in location_requirements
+        )
+        if not has_location_match:
+            print(f"❌ Location constraint failed for {person.get('name', 'unknown')}. Required: {location_requirements}")
+            return False
+    
+    # Check title requirements
+    title_requirements = hard_constraints.get('titleRequirements', [])
+    if title_requirements:
+        has_title_match = any(
+            title.lower() in person_text 
+            for title in title_requirements
+        )
+        if not has_title_match:
+            print(f"❌ Title constraint failed for {person.get('name', 'unknown')}. Required: {title_requirements}")
+            return False
+    
+    # Check company requirements
+    company_requirements = hard_constraints.get('companyRequirements', [])
+    if company_requirements:
+        has_company_match = any(
+            company.lower() in person_text 
+            for company in company_requirements
+        )
+        if not has_company_match:
+            print(f"❌ Company constraint failed for {person.get('name', 'unknown')}. Required: {company_requirements}")
+            return False
+    
+    # Check exclusions
+    exclusions = hard_constraints.get('exclusions', [])
+    if exclusions:
+        for exclusion in exclusions:
+            if exclusion.lower() in person_text:
+                print(f"❌ Exclusion constraint failed for {person.get('name', 'unknown')}. Excluded: {exclusion}")
+                return False
+    
+    return True
+
+def passes_soft_filters(person: Dict[str, Any], criteria: Dict[str, Any]) -> bool:
+    """
+    Apply soft filters (preferences that affect ranking but don't exclude)
     """
     textual_criteria = criteria.get('textualCriteria', {})
     keyword_search = textual_criteria.get('keywordSearch', {})
     
-    # Check exclusion keywords
+    # Check exclusion keywords (these are still hard filters)
     excluded = keyword_search.get('excluded', [])
     if excluded:
         person_text = json.dumps(person).lower()
@@ -144,20 +240,7 @@ def passes_hard_filters(person: Dict[str, Any], criteria: Dict[str, Any]) -> boo
             if excluded_term.lower() in person_text:
                 return False
     
-    # Check required field matches (if specified)
-    field_search = textual_criteria.get('fieldSpecificSearch', {})
-    
-    # If industries are specified, person must match at least one
-    industries = field_search.get('industries', [])
-    if industries:
-        person_text = json.dumps(person).lower()
-        has_industry_match = any(
-            industry.lower() in person_text 
-            for industry in industries
-        )
-        if not has_industry_match:
-            return False
-    
+    # All other criteria are now soft preferences handled by scoring
     return True
 
 def analyze_field_matches(person: Dict[str, Any], criteria: Dict[str, Any]) -> Dict[str, List[str]]:

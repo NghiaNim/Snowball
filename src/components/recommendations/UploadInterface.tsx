@@ -12,7 +12,7 @@ import { Upload, FileText, CheckCircle, AlertCircle, X, Cloud } from 'lucide-rea
 import * as XLSX from 'xlsx'
 import { analyzeDatasetSchema, type DatasetSchema } from '@/lib/dataset-analysis'
 
-interface ProductionUploadInterfaceProps {
+interface UploadInterfaceProps {
   onUploadSuccess: () => void
 }
 
@@ -23,7 +23,7 @@ interface UploadedFile {
   error?: string
 }
 
-export function ProductionUploadInterface({ onUploadSuccess }: ProductionUploadInterfaceProps) {
+export function UploadInterface({ onUploadSuccess }: UploadInterfaceProps) {
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
   const [datasetName, setDatasetName] = useState('')
   const [isUploading, setIsUploading] = useState(false)

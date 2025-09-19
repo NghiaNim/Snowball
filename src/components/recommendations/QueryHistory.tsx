@@ -57,7 +57,7 @@ interface QueryHistoryProps {
   onNewSearch?: () => void
 }
 
-export function ProductionQueryHistory({ 
+export function QueryHistory({ 
   activeSearchId, 
   onRerunQuery, 
   onNewSearch 

@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Upload, Database, Search, History, LogOut } from 'lucide-react'
-import { ProductionUploadInterface } from '@/components/recommendations/ProductionUploadInterface'
-import { ProductionDatasetManager } from '@/components/recommendations/ProductionDatasetManager'
+import { UploadInterface } from '@/components/recommendations/UploadInterface'
+import { DatasetManager } from '@/components/recommendations/DatasetManager'
 import { MultiStageQueryInterface } from '@/components/recommendations/MultiStageQueryInterface'
-import { ProductionQueryHistory } from '@/components/recommendations/ProductionQueryHistory'
+import { QueryHistory } from '@/components/recommendations/QueryHistory'
 import { type DatasetSchema } from '@/lib/dataset-analysis'
 
 type TabType = 'upload' | 'datasets' | 'query' | 'history'
@@ -168,7 +168,7 @@ export default function RecommendationsDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ProductionUploadInterface 
+                <UploadInterface 
                   onUploadSuccess={() => setActiveTab('datasets')}
                 />
               </CardContent>
@@ -176,7 +176,7 @@ export default function RecommendationsDashboard() {
           )}
 
           {activeTab === 'datasets' && (
-            <ProductionDatasetManager 
+            <DatasetManager 
               onSelectDataset={(dataset) => {
                 console.log('Selected dataset:', dataset)
                 setSelectedDataset(dataset)
@@ -208,7 +208,7 @@ export default function RecommendationsDashboard() {
           )}
 
           {activeTab === 'history' && (
-            <ProductionQueryHistory 
+            <QueryHistory 
               activeSearchId={activeSearchId}
               onRerunQuery={async (query, datasetId) => {
                 console.log('🔄 Rerun requested for query:', query, 'dataset:', datasetId)

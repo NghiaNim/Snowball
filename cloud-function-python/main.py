@@ -202,50 +202,70 @@ def execute_search_pipeline(
     query_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Execute the full search pipeline with detailed logging
+    Execute the full search pipeline with detailed logging and progress updates
     """
-    def log_stage(stage_name: str, message: str, progress: int = None):
-        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    def log_stage(stage_name: str, message: str, progress: int = None, substep_data: Dict = None):
+        timestamp = datetime.now().strftime("%H:%M:%S")[:-3]
         elapsed = time.time() - start_time
         progress_str = f" [{progress}%]" if progress is not None else ""
-        print(f'🕐 {timestamp} | ⏱️ {elapsed:.1f}s | {stage_name}{progress_str}: {message}')
+        
+        # Simplified logging - less verbose
+        print(f'🕐 {elapsed:.1f}s | {stage_name}{progress_str}: {message}')
+        
+        # Only log key data points, not everything
+        if substep_data and any(key in substep_data for key in ['filtered_count', 'candidates_found', 'final_results', 'error_type']):
+            key_data = {k: v for k, v in substep_data.items() if k in ['filtered_count', 'candidates_found', 'final_results', 'hard_constraints', 'error_type']}
+            if key_data:
+                print(f'   📊 Key data: {json.dumps(key_data)}')
         
         # Update database with progress if query_id provided
         if query_id:
             try:
-                update_query_progress(query_id, stage_name, message, progress or 0, False)
+                update_query_progress(query_id, stage_name, message, progress or 0, False, substep_data)
             except Exception as e:
-                print(f'⚠️  Failed to update progress: {str(e)}')
+                print(f'⚠️  Progress update failed: {str(e)}')
     
     try:
-        log_stage('🚀 CRITERIA', f'Starting search pipeline for query: "{query}"', 0)
-        log_stage('📝 CRITERIA', 'Analyzing requirements and translating query to search criteria...', 10)
+        log_stage('🚀 CRITERIA', f'Starting search pipeline for query: "{query}"', 0, {
+            'query': query,
+            'dataset_id': dataset_id,
+            'limit': limit,
+            'top_k': top_k
+        })
         
-        # Stage 2: Query to Criteria Translation
+        # Stage 2A: Smart Query Analysis
+        log_stage('📝 CRITERIA', 'Analyzing query with advanced AI...', 10)
+        
+        # Stage 2B: Intelligent Criteria Generation
         criteria = translate_query_to_criteria(query, dataset_schema, follow_up_answers)
-        criteria_summary = {k: v for k, v in criteria.items() if k in ['primary_focus', 'industries', 'experience_level']}
-        log_stage('📝 CRITERIA', f'✅ Generated search criteria: {json.dumps(criteria_summary, indent=2)}', 20)
+        hard_constraints = criteria.get('hardConstraints', {})
+        log_stage('📝 CRITERIA', f'✅ Intelligent criteria generated', 20, {
+            'hard_constraints': {k: v for k, v in hard_constraints.items() if v}
+        })
 
-        log_stage('📊 DATASET', f'Loading and parsing dataset: {dataset_id}...', 25)
-        
-        # Stage 3: Load and parse dataset
+        # Stage 3: Dataset Loading
+        log_stage('📊 DATASET', f'Loading dataset...', 30)
         people = parse_dataset(dataset_id, storage_client)
-        log_stage('📊 DATASET', f'✅ Successfully loaded {len(people):,} person records from dataset', 35)
+        log_stage('📊 DATASET', f'✅ Dataset loaded: {len(people):,} records', 35)
 
-        log_stage('🔍 BM25', f'Starting BM25 text search across {len(people):,} records (top_k={top_k})...', 40)
-        
-        # Stage 4: BM25 Search
+        # Stage 4: Smart Search Algorithm
+        log_stage('🔍 BM25', f'Running intelligent search...', 50)
         bm25_results = search_with_bm25(people, criteria, top_k)
-        log_stage('🔍 BM25', f'✅ BM25 search completed: {len(bm25_results)} candidates found', 60)
+        log_stage('🔍 BM25', f'✅ Found {len(bm25_results)} candidates', 60, {
+            'candidates_found': len(bm25_results)
+        })
 
-        log_stage('🧠 LLM', f'Starting GPT-4o analysis of top {len(bm25_results)} candidates...', 70)
-        
-        # Stage 5: LLM Refinement  
+        # Stage 5: AI Analysis
+        log_stage('🧠 LLM', f'Analyzing candidates with AI...', 70)
         refined_results = refine_candidates_with_llm(bm25_results, criteria, limit)
-        log_stage('🧠 LLM', f'✅ GPT-4o analysis completed: {len(refined_results)} final recommendations', 90)
+        log_stage('🧠 LLM', f'✅ Analysis complete', 90, {
+            'final_results': len(refined_results)
+        })
 
         processing_time = time.time() - start_time
-        log_stage('🎯 LLM', f'✅ Search pipeline completed in {processing_time:.1f}s', 100)
+        log_stage('🎯 COMPLETED', f'✅ Search completed in {processing_time:.1f}s', 100, {
+            'final_results': len(refined_results)
+        })
 
         # Final database update
         if query_id:
@@ -277,20 +297,98 @@ def execute_search_pipeline(
 
     except Exception as error:
         elapsed = time.time() - start_time
-        log_stage('❌ LLM', f'Pipeline failed after {elapsed:.1f}s: {str(error)}')
+        import traceback
+        error_details = {
+            'error_type': type(error).__name__,
+            'error_message': str(error),
+            'traceback': traceback.format_exc(),
+            'elapsed_time': round(elapsed, 2),
+            'stage_reached': 'unknown'
+        }
         
-        # Update database with error if query_id provided
+        log_stage('❌ ERROR', f'Pipeline failed after {elapsed:.1f}s: {str(error)}', 0, error_details)
+        
+        # Update database with detailed error if query_id provided
         if query_id:
             try:
-                update_query_progress(query_id, 'error', f'Search failed: {str(error)}', 0, True)
+                update_query_progress(query_id, 'error', f'Search failed: {str(error)}', 0, True, error_details)
             except Exception as e:
                 print(f'⚠️  Failed to update error status: {str(e)}')
         
         raise error
 
+# Helper functions for enhanced logging
+def analyze_dataset_fields(sample_people: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Analyze dataset field distribution and types"""
+    if not sample_people:
+        return {}
+    
+    field_stats = {}
+    for person in sample_people:
+        for field, value in person.items():
+            if field not in field_stats:
+                field_stats[field] = {'count': 0, 'types': set(), 'samples': []}
+            
+            field_stats[field]['count'] += 1
+            field_stats[field]['types'].add(type(value).__name__)
+            if len(field_stats[field]['samples']) < 3 and value:
+                field_stats[field]['samples'].append(str(value)[:50])
+    
+    # Convert to serializable format
+    return {
+        field: {
+            'coverage': stats['count'] / len(sample_people),
+            'types': list(stats['types']),
+            'samples': stats['samples'][:2]  # Limit samples
+        }
+        for field, stats in field_stats.items()
+    }
+
+def get_recommendation_distribution(results: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Get distribution of recommendation types"""
+    distribution = {}
+    for result in results:
+        rec = result.get('recommendation', 'Unknown')
+        distribution[rec] = distribution.get(rec, 0) + 1
+    return distribution
+
+def refine_candidates_with_llm_enhanced(
+    bm25_results: List[Dict[str, Any]], 
+    criteria: Dict[str, Any], 
+    final_limit: int,
+    log_stage_func,
+    start_time: float
+) -> List[Dict[str, Any]]:
+    """Enhanced LLM refinement with detailed progress logging"""
+    from llm_refinement import refine_candidates_with_llm
+    
+    # Log LLM processing details
+    batch_size = 5
+    total_batches = (len(bm25_results) + batch_size - 1) // batch_size
+    
+    # Process with detailed logging
+    progress_base = 70
+    progress_range = 15  # 70% to 85%
+    
+    for i in range(0, len(bm25_results), batch_size):
+        batch_num = (i // batch_size) + 1
+        current_progress = progress_base + int((batch_num / total_batches) * progress_range)
+        
+        log_stage_func('🧠 LLM', f'Processing batch {batch_num}/{total_batches} with GPT-4o...', current_progress, {
+            'batch_number': batch_num,
+            'total_batches': total_batches,
+            'candidates_in_batch': min(batch_size, len(bm25_results) - i),
+            'llm_model': 'gpt-4o'
+        })
+    
+    # Call the actual refinement function
+    results = refine_candidates_with_llm(bm25_results, criteria, final_limit)
+    
+    return results
+
 # Removed get_api_base_url function - no longer needed since we update Supabase directly
 
-def update_query_progress(query_id: str, stage: str, message: str, progress: int, completed: bool):
+def update_query_progress(query_id: str, stage: str, message: str, progress: int, completed: bool, substep_data: Dict = None):
     """Update query progress directly in Supabase database"""
     try:
         supabase = get_supabase_client()
@@ -306,25 +404,35 @@ def update_query_progress(query_id: str, stage: str, message: str, progress: int
         else:
             status = 'processing'
         
+        # Build enhanced metadata
+        metadata = {
+            'current_stage': stage,
+            'stage_message': message,
+            'progress': progress,
+            'last_update': datetime.now().isoformat()
+        }
+        
+        # Add substep data if provided
+        if substep_data:
+            metadata['substep_data'] = substep_data
+            
         update_data = {
             'status': status,
-            'metadata': {
-                'current_stage': stage,
-                'stage_message': message,
-                'progress': progress,
-                'last_update': datetime.now().isoformat()
-            },
+            'metadata': metadata,
             'updated_at': datetime.now().isoformat()
         }
         
         print(f"🔄 Updating query {query_id} in Supabase: {stage} ({progress}%)")
+        print(f"📊 Metadata being stored: {metadata}")
         
         result = supabase.table('query_history').update(update_data).eq('id', query_id).execute()
         
         if result.data:
-            print(f"✅ Progress update successful")
+            print(f"✅ Progress update successful - {len(result.data)} rows updated")
+            print(f"🔍 Updated data: {result.data[0] if result.data else 'No data'}")
         else:
             print(f"⚠️ No rows updated - query {query_id} may not exist")
+            print(f"🔍 Update data was: {update_data}")
             
     except Exception as error:
         print(f"⚠️ Progress update error: {str(error)}")

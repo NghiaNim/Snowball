@@ -64,6 +64,7 @@ try {
 export interface UploadedDataset {
   id: string
   originalName: string
+  customName?: string
   gcsPath: string
   uploadedAt: string
   fileSize: number
@@ -81,7 +82,7 @@ export interface UploadedDataset {
 export async function uploadDatasetToGCS(
   file: Buffer, 
   originalName: string,
-  metadata: { fileSize: number; fileType: string }
+  metadata: { fileSize: number; fileType: string; customName?: string }
 ): Promise<UploadedDataset> {
   if (!storage || !bucket) {
     throw new Error('Google Cloud Storage not properly initialized')
@@ -101,6 +102,7 @@ export async function uploadDatasetToGCS(
         contentType: getContentType(fileExtension || ''),
         metadata: {
           originalName,
+          customName: metadata.customName || '',
           uploadedAt: new Date().toISOString(),
           fileSize: metadata.fileSize.toString(),
           fileType: metadata.fileType,
@@ -113,6 +115,7 @@ export async function uploadDatasetToGCS(
     const dataset: UploadedDataset = {
       id: timestamp.toString(),
       originalName,
+      customName: metadata.customName,
       gcsPath: gcsFileName,
       uploadedAt: new Date().toISOString(),
       fileSize: metadata.fileSize,
@@ -155,6 +158,7 @@ export async function listDatasetsFromGCS(): Promise<UploadedDataset[]> {
       datasets.push({
         id: timestamp,
         originalName: String(metadata.metadata?.originalName || fileName),
+        customName: String(metadata.metadata?.customName || ''),
         gcsPath: file.name,
         uploadedAt: String(metadata.metadata?.uploadedAt || metadata.timeCreated || ''),
         fileSize: parseInt(String(metadata.size || '0')),
