@@ -394,8 +394,8 @@ export function ProductionQueryHistory({
                 {/* Entry Header */}
                 <div className="flex flex-col space-y-4 md:flex-row md:items-start md:justify-between md:space-y-0">
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-y-0 md:gap-2 mb-3">
-                      <div className="flex items-center gap-2">
+                    <div className="mb-3">
+                      <div className="flex items-center gap-2 mb-2">
                         {isProcessing ? (
                           <Brain className="h-4 w-4 text-blue-600 flex-shrink-0" />
                         ) : isError ? (
@@ -403,7 +403,7 @@ export function ProductionQueryHistory({
                         ) : (
                           <Search className="h-4 w-4 text-purple-600 flex-shrink-0" />
                         )}
-                        <span className="font-medium text-base md:text-lg truncate">&quot;{entry.query}&quot;</span>
+                        <span className="font-medium text-base md:text-lg truncate pr-2">&quot;{entry.query}&quot;</span>
                       </div>
                       
                       <div className="flex items-center gap-2">

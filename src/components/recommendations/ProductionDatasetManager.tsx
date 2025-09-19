@@ -65,7 +65,7 @@ export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: 
     } finally {
       setIsLoading(false)
     }
-  }, [onDatasetsChange])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDeleteDataset = async (dataset: UploadedDataset) => {
     if (!confirm(`Are you sure you want to delete "${dataset.originalName}"? This action cannot be undone.`)) {
