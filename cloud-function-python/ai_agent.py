@@ -46,40 +46,47 @@ def generate_follow_up_questions(query: str, dataset_schema: Optional[Dict] = No
         return []
     
     try:
-        system_prompt = """
-You are an expert recruiter. Generate 2-3 targeted follow-up questions to refine a candidate search query.
+        # Determine question count and detail level based on extensive mode
+        question_count = "6-8" if extensive_questions else "3-4"
+        mode_description = "comprehensive and detailed" if extensive_questions else "focused and targeted"
+        
+        system_prompt = f"""
+You are an expert recruiter. Generate {question_count} {mode_description} follow-up questions to refine a candidate search query.
 
 IMPORTANT RULES:
 - ALL questions must be type "multiple_choice" 
 - ALL questions must include "Other" as the last option
 - Include 4-6 relevant options plus "Other"
-- Keep questions focused and actionable
+- {"EXTENSIVE MODE: Generate comprehensive questions covering multiple aspects of candidate selection" if extensive_questions else "STANDARD MODE: Keep questions focused and actionable"}
 
-Focus on:
+{"Focus areas for extensive questioning:" if extensive_questions else "Focus on:"}
 1. Role-specific requirements (skills, technologies, roles)
 2. Experience level preferences  
 3. Industry or domain expertise
 4. Cultural fit considerations
+{"5. Geographic preferences and location requirements\n6. Company size and stage preferences\n7. Investment focus areas and sectors\n8. Network connections and referral sources" if extensive_questions else ""}
+
+{"Generate 6-8 questions minimum to provide comprehensive filtering options." if extensive_questions else "Generate 3-4 strategic questions for efficient filtering."}
 
 Return JSON format:
-{
+{{
   "questions": [
-    {
+    {{
       "id": "experience_level",
       "question": "What experience level are you looking for?",
       "type": "multiple_choice",
       "options": ["Entry-level", "Mid-level", "Senior", "Executive", "Other"],
       "required": false
-    },
-    {
+    }},
+    {{
       "id": "skills_required",
       "question": "What specific skills or technologies are important?",
       "type": "multiple_choice", 
       "options": ["Python", "JavaScript", "Leadership", "Sales", "Marketing", "Other"],
       "required": false
-    }
+    }}
   ]
-}
+}}
 """
         
         user_prompt = f"""
