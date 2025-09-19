@@ -65,9 +65,12 @@ export function ProductionQueryHistory({
   const [history, setHistory] = useState<QueryHistoryEntry[]>([])
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now())
 
-  const loadHistory = async () => {
-    setIsLoading(true)
+  const loadHistory = async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true)
+    }
     try {
       const response = await fetch('/api/recommendations/query-history')
       
@@ -86,6 +89,7 @@ export function ProductionQueryHistory({
           processingStages: (query.processing_stages as ProcessingStage[]) || []
         }))
         setHistory(transformedQueries)
+        setLastUpdateTime(Date.now())
       } else {
         console.warn('Failed to fetch from database, falling back to localStorage')
         // Fallback to localStorage
@@ -105,7 +109,9 @@ export function ProductionQueryHistory({
         setHistory([])
       }
     } finally {
-      setIsLoading(false)
+      if (showLoading) {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -113,17 +119,22 @@ export function ProductionQueryHistory({
     loadHistory()
   }, [])
 
-  // Monitor active search and refresh history (less frequently to reduce load)
+  // Monitor active search with smart polling - only when not actively being updated elsewhere
   useEffect(() => {
     if (activeSearchId) {
-      // Only refresh every 10 seconds since MultiStageQueryInterface is already polling every 2 seconds
+      // Much less frequent polling since MultiStageQueryInterface handles real-time updates
+      // Only refresh when user might have switched tabs or lost focus
       const interval = setInterval(() => {
-        loadHistory()
-      }, 10000) // Refresh every 10 seconds when there's an active search
+        // Only poll if document is visible and we haven't updated recently
+        const timeSinceLastUpdate = Date.now() - lastUpdateTime
+        if (!document.hidden && timeSinceLastUpdate > 25000) {
+          loadHistory(false) // Don't show loading spinner for background updates
+        }
+      }, 30000) // Refresh every 30 seconds when there's an active search
 
       return () => clearInterval(interval)
     }
-  }, [activeSearchId])
+  }, [activeSearchId, lastUpdateTime])
 
   const clearHistory = async () => {
     if (confirm('Are you sure you want to clear all query history? This action cannot be undone.')) {
@@ -195,41 +206,88 @@ export function ProductionQueryHistory({
     const name = nameField ? topResult.data[nameField] : 'Person'
     
     if (results.length === 1) {
-      return `Found: ${name} (score: ${topResult.match_score})`
+      return `Found: ${name}`
     }
     
-    return `${results.length} results, top: ${name} (score: ${topResult.match_score})`
+    return `${results.length} results, top: ${name}`
   }
 
-  const renderProcessingStages = (stages: ProcessingStage[]) => {
+  const renderProcessingProgress = (entry: QueryHistoryEntry) => {
+    // If completed, show success state
+    if (entry.status === 'completed') {
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <span className="text-sm font-medium text-green-700">Search completed successfully!</span>
+              <Progress value={100} className="h-3 mt-1" />
+            </div>
+            <span className="text-sm font-medium text-green-600">100%</span>
+          </div>
+        </div>
+      )
+    }
+
+    // If error, show error state
+    if (entry.status === 'error') {
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <span className="text-sm font-medium text-red-700">Search failed</span>
+              <Progress value={0} className="h-3 mt-1" />
+            </div>
+            <span className="text-sm font-medium text-red-600">Error</span>
+          </div>
+        </div>
+      )
+    }
+
+    // If processing, get progress directly from cloud function metadata
+    const metadata = entry.metadata as { current_stage?: string, stage_message?: string, progress?: number } | undefined
+    
+    // Get current stage info from cloud function
+    const currentStage = metadata?.current_stage || '🚀 CRITERIA'
+    const stageMessage = metadata?.stage_message || 'Starting AI search...'
+    const cloudFunctionProgress = metadata?.progress || 0
+
+    // Calculate overall progress based on cloud function stage and progress
+    const stageMap = {
+      'CRITERIA': { base: 0, weight: 25 },    // 0-25%
+      'DATASET': { base: 25, weight: 25 },    // 25-50% 
+      'BM25': { base: 50, weight: 25 },       // 50-75%
+      'LLM': { base: 75, weight: 25 }         // 75-100%
+    }
+    
+    // Extract stage name from cloud function format (e.g. "🚀 CRITERIA" -> "CRITERIA")
+    const stageName = currentStage.includes(' ') ? currentStage.split(' ')[1] : currentStage
+    const stageConfig = stageMap[stageName as keyof typeof stageMap] || stageMap.CRITERIA
+    
+    // Calculate overall progress: base progress + (stage progress * stage weight / 100)
+    const overallProgress = Math.min(100, stageConfig.base + (cloudFunctionProgress * stageConfig.weight / 100))
+
     return (
       <div className="space-y-3">
-        {stages.map((stage) => (
-          <div key={stage.stage} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {stage.completed ? (
-                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                ) : (
-                  <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
-                    {stage.progress > 0 ? (
-                      <Loader2 className="w-3 h-3 text-blue-600 animate-spin" />
-                    ) : (
-                      <div className="w-2 h-2 bg-blue-600 rounded-full" />
-                    )}
-                  </div>
-                )}
-                <span className="text-sm font-medium text-gray-900">{stage.message}</span>
-              </div>
-              <span className="text-xs text-gray-500">{Math.round(stage.progress)}%</span>
-            </div>
-            <Progress value={stage.progress} className="h-2" />
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+            <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
           </div>
-        ))}
+          <div className="flex-1">
+            <span className="text-sm font-medium text-gray-900">{stageMessage}</span>
+            <Progress value={overallProgress} className="h-3 mt-1" />
+          </div>
+          <span className="text-sm font-medium text-blue-600">{Math.round(overallProgress)}%</span>
+        </div>
       </div>
     )
   }
@@ -265,7 +323,7 @@ export function ProductionQueryHistory({
               New Search
             </Button>
           )}
-          <Button variant="outline" onClick={loadHistory} size="sm">
+          <Button variant="outline" onClick={() => loadHistory()} size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -417,7 +475,7 @@ export function ProductionQueryHistory({
                       <Brain className="h-4 w-4 text-blue-600" />
                       <span className="font-medium text-blue-900">AI Processing in Progress</span>
                     </div>
-                    {renderProcessingStages(entry.processingStages)}
+                     {renderProcessingProgress(entry)}
                   </div>
                 ) : isError ? (
                   <div className="bg-red-50 rounded-lg p-4 mb-3">

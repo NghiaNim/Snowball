@@ -33,6 +33,8 @@ export default function RecommendationsDashboard() {
   const [user, setUser] = useState<{ username: string; loginTime: string } | null>(null)
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null)
   const [forceQueryReset, setForceQueryReset] = useState<boolean>(false)
+  const [rerunData, setRerunData] = useState<{query: string, datasetId: string, datasetName: string} | null>(null)
+  const [availableDatasets, setAvailableDatasets] = useState<SelectedDataset[]>([])
   const router = useRouter()
 
   // Check authentication on mount
@@ -180,6 +182,10 @@ export default function RecommendationsDashboard() {
                 setSelectedDataset(dataset)
                 setActiveTab('query')
               }}
+              onDatasetsChange={(datasets) => {
+                // Keep track of available datasets for rerun functionality
+                setAvailableDatasets(datasets)
+              }}
             />
           )}
 
@@ -193,18 +199,57 @@ export default function RecommendationsDashboard() {
                 setActiveTab('history')
               }}
               forceReset={forceQueryReset}
+              rerunData={rerunData}
+              onRerunComplete={() => {
+                // Clear rerun data after it's been processed
+                setRerunData(null)
+              }}
             />
           )}
 
           {activeTab === 'history' && (
             <ProductionQueryHistory 
               activeSearchId={activeSearchId}
-              onRerunQuery={(query, datasetId) => {
-                // Find the dataset in our current datasets and select it
-                // For now, we'll just switch to query tab with the query filled
-                setActiveTab('query')
-                // Note: We'd need to implement query prefilling in the QueryInterface
-                console.log('Rerun query:', query, 'for dataset:', datasetId)
+              onRerunQuery={async (query, datasetId) => {
+                console.log('🔄 Rerun requested for query:', query, 'dataset:', datasetId)
+                
+                // First, try to find the dataset in available datasets
+                let targetDataset = availableDatasets.find(d => d.id === datasetId)
+                
+                // If not found, try to fetch dataset information 
+                if (!targetDataset) {
+                  try {
+                    const response = await fetch('/api/recommendations/list-datasets')
+                    if (response.ok) {
+                      const data = await response.json()
+                      const datasets = data.datasets || []
+                      setAvailableDatasets(datasets)
+                      targetDataset = datasets.find((d: SelectedDataset) => d.id === datasetId)
+                    }
+                  } catch (error) {
+                    console.error('Failed to fetch datasets:', error)
+                  }
+                }
+                
+                if (targetDataset) {
+                  // Select the dataset and setup rerun data
+                  setSelectedDataset(targetDataset)
+                  setRerunData({
+                    query,
+                    datasetId,
+                    datasetName: targetDataset.originalName
+                  })
+                  setActiveTab('query')
+                } else {
+                  console.error('Dataset not found for rerun:', datasetId)
+                  // Fallback: just switch to query tab with rerun data
+                  setRerunData({
+                    query,
+                    datasetId,
+                    datasetName: 'Unknown Dataset'
+                  })
+                  setActiveTab('query')
+                }
               }}
               onNewSearch={() => setActiveTab('query')}
             />

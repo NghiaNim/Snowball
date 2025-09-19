@@ -18,6 +18,7 @@ import {
 
 interface ProductionDatasetManagerProps {
   onSelectDataset: (dataset: UploadedDataset) => void
+  onDatasetsChange?: (datasets: UploadedDataset[]) => void
 }
 
 interface UploadedDataset {
@@ -34,7 +35,7 @@ interface UploadedDataset {
   }
 }
 
-export function ProductionDatasetManager({ onSelectDataset }: ProductionDatasetManagerProps) {
+export function ProductionDatasetManager({ onSelectDataset, onDatasetsChange }: ProductionDatasetManagerProps) {
   const [datasets, setDatasets] = useState<UploadedDataset[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -52,7 +53,12 @@ export function ProductionDatasetManager({ onSelectDataset }: ProductionDatasetM
         throw new Error(result.error || 'Failed to fetch datasets')
       }
 
-      setDatasets(result.datasets || [])
+      const newDatasets = result.datasets || []
+      setDatasets(newDatasets)
+      // Notify parent component of dataset changes
+      if (onDatasetsChange) {
+        onDatasetsChange(newDatasets)
+      }
     } catch (fetchError) {
       console.error('Error fetching datasets:', fetchError)
       setError(fetchError instanceof Error ? fetchError.message : 'Failed to load datasets')
@@ -80,7 +86,12 @@ export function ProductionDatasetManager({ onSelectDataset }: ProductionDatasetM
       }
 
       // Remove from local state
-      setDatasets(prev => prev.filter(d => d.id !== dataset.id))
+      const updatedDatasets = datasets.filter(d => d.id !== dataset.id)
+      setDatasets(updatedDatasets)
+      // Notify parent component of dataset changes
+      if (onDatasetsChange) {
+        onDatasetsChange(updatedDatasets)
+      }
     } catch (deleteError) {
       console.error('Error deleting dataset:', deleteError)
       setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete dataset')
@@ -138,7 +149,7 @@ export function ProductionDatasetManager({ onSelectDataset }: ProductionDatasetM
   // Load datasets on component mount
   useEffect(() => {
     fetchDatasets()
-  }, [])
+  })
 
   return (
     <div className="space-y-6">

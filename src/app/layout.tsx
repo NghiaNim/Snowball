@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Snowball - Connect Founders with Investors",
+  title: "Maximize ROI from Meetings",
   description: "A two-sided platform connecting early-stage startups with investors through curated tribe-based networking.",
+  icons: {
+    icon: '/snowball.png',
+  },
 };
 
 export default function RootLayout({

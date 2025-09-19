@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { 
   Search, 
   ArrowLeft, 
@@ -21,9 +20,9 @@ import {
   MessageSquare,
   Brain,
   Zap,
-  Clock,
   Database,
-  RefreshCw
+  RefreshCw,
+  History
 } from 'lucide-react'
 import { formatSchemaForAI, type DatasetSchema } from '@/lib/dataset-analysis'
 
@@ -37,12 +36,20 @@ interface SelectedDataset {
   metadata?: Record<string, unknown>
 }
 
+interface RerunQueryData {
+  query: string
+  datasetId: string
+  datasetName: string
+}
+
 interface MultiStageQueryProps {
   selectedDataset: SelectedDataset | null
   datasetSchema?: DatasetSchema
   onBackToDatasets: () => void
   onSearchStarted?: (searchId: string) => void
   forceReset?: boolean // Add prop to force component reset
+  rerunData?: RerunQueryData | null // Data for rerunning a historical query
+  onRerunComplete?: () => void // Callback when rerun setup is complete
 }
 
 interface FollowUpQuestion {
@@ -80,7 +87,9 @@ export function MultiStageQueryInterface({
   datasetSchema,
   onBackToDatasets,
   onSearchStarted,
-  forceReset = false
+  forceReset = false,
+  rerunData = null,
+  onRerunComplete
 }: MultiStageQueryProps) {
   const [currentStage, setCurrentStage] = useState<'input' | 'questions' | 'processing' | 'results'>('input')
   const [query, setQuery] = useState('')
@@ -96,9 +105,27 @@ export function MultiStageQueryInterface({
   const [hasUserInteracted, setHasUserInteracted] = useState(false)
   const [pollingStartTime, setPollingStartTime] = useState<number | null>(null)
   const [, setTimerTick] = useState(0) // Force re-renders for timer updates
+  const [abortController, setAbortController] = useState<AbortController | null>(null)
+
+  // Function to cancel any ongoing query
+  const cancelOngoingQuery = useCallback(() => {
+    if (abortController) {
+      console.log('🛑 Cancelling ongoing query...')
+      abortController.abort()
+      setAbortController(null)
+    }
+    if (processing) {
+      setProcessing(false)
+      setProcessingStages([])
+      console.log('✅ Query cancelled')
+    }
+  }, [abortController, processing])
 
   // Function to reset all component state
-  const resetComponentState = () => {
+  const resetComponentState = useCallback(() => {
+    // Cancel any ongoing operations first
+    cancelOngoingQuery()
+    
     setCurrentStage('input')
     setQuery('')
     setAnswers({})
@@ -112,7 +139,7 @@ export function MultiStageQueryInterface({
     setHasUserInteracted(false)
     setPollingStartTime(null)
     localStorage.removeItem('ai-search-state')
-  }
+  }, [cancelOngoingQuery])
 
   // Reset component when forceReset prop changes or when no active search
   useEffect(() => {
@@ -120,7 +147,36 @@ export function MultiStageQueryInterface({
       console.log('🔄 Force reset triggered - resetting component state')
       resetComponentState()
     }
-  }, [forceReset])
+  }, [forceReset, resetComponentState])
+
+  // Handle rerun data - pre-fill query and cancel any ongoing operations
+  useEffect(() => {
+    if (rerunData) {
+      console.log('🔄 Rerun data provided - setting up query rerun:', rerunData)
+      
+      // Cancel any ongoing queries first
+      cancelOngoingQuery()
+      
+      // Reset state but keep the query from rerun data
+      setCurrentStage('input')
+      setQuery(rerunData.query)
+      setAnswers({})
+      setFollowUpQuestions([])
+      setResults([])
+      setError(null)
+      setMetadata(null)
+      setProcessing(false)
+      setActiveQueryId(null)
+      setProcessingStages([])
+      setHasUserInteracted(true) // Mark as interacted since we're pre-filling
+      setPollingStartTime(null)
+      
+      // Call callback to let parent know rerun setup is complete
+      if (onRerunComplete) {
+        onRerunComplete()
+      }
+    }
+  }, [rerunData, onRerunComplete, cancelOngoingQuery])
 
   // Auto-reset when component mounts if no valid active search
   useEffect(() => {
@@ -145,7 +201,7 @@ export function MultiStageQueryInterface({
     // No valid saved state or different dataset - reset to fresh start
     console.log('🔄 No valid saved state - starting fresh')
     resetComponentState()
-  }, [selectedDataset?.id])
+  }, [selectedDataset?.id, resetComponentState])
 
   // Save and restore state
   useEffect(() => {
@@ -378,23 +434,49 @@ export function MultiStageQueryInterface({
       }
     }
 
-    // Poll every 2 seconds
-    const interval = setInterval(pollForCompletion, 2000)
+    // Smart polling with exponential backoff and visibility check
+    let pollCount = 0
+    const maxPollCount = 150 // Maximum polls (10 minutes at 4s intervals)
+    
+    const smartPoll = () => {
+      // Only poll if document is visible to reduce unnecessary requests
+      if (!document.hidden) {
+        pollForCompletion()
+      }
+      
+      pollCount++
+      
+      // Exponential backoff: start at 3s, increase to 5s after 30 polls
+      const baseInterval = pollCount > 30 ? 5000 : 3000
+      
+      if (pollCount < maxPollCount) {
+        setTimeout(smartPoll, baseInterval)
+      } else {
+        console.warn('⏰ Maximum polling attempts reached')
+        setError('Search is taking longer than expected. Please check Query History or try again.')
+        setProcessing(false)
+        setActiveQueryId(null)
+        setPollingStartTime(null)
+      }
+    }
     
     // Initial poll
-    pollForCompletion()
+    smartPoll()
     
-    return () => clearInterval(interval)
+    // Return cleanup function
+    return () => {
+      pollCount = maxPollCount // Stop polling
+    }
   }, [activeQueryId, processing, pollingStartTime])
 
-  // Update UI every second when processing to show elapsed time
+  // Update UI every 5 seconds when processing to show elapsed time (reduced frequency)
   useEffect(() => {
     if (!processing || !pollingStartTime) return
 
     const updateTimer = setInterval(() => {
       // Force a re-render to update the elapsed time display
       setTimerTick(prev => prev + 1)
-    }, 1000)
+    }, 5000) // Reduced from 1s to 5s to minimize re-renders
 
     return () => clearInterval(updateTimer)
   }, [processing, pollingStartTime])
@@ -470,12 +552,17 @@ export function MultiStageQueryInterface({
     setProcessing(true)
 
     try {
+      // Create AbortController for this request
+      const controller = new AbortController()
+      setAbortController(controller)
+
       // Stage 1: Get follow-up questions
       const response = await fetch('https://us-central1-snowball-471001.cloudfunctions.net/getRecommendationsV2', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
         body: JSON.stringify({
           stage: 'questions',
           query: query.trim(),
@@ -497,10 +584,17 @@ export function MultiStageQueryInterface({
       }
 
     } catch (err: unknown) {
+      // Handle cancellation gracefully
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('🛑 Request cancelled by user')
+        return // Don't set error for cancellation
+      }
+      
       console.error('❌ Error getting follow-up questions:', err)
       setError(err instanceof Error ? err.message : 'Failed to generate follow-up questions')
     } finally {
       setProcessing(false)
+      setAbortController(null) // Clear the controller
     }
   }
 
@@ -511,12 +605,12 @@ export function MultiStageQueryInterface({
     setProcessing(true)
     setCurrentStage('processing')
     
-    // Initialize processing stages
+    // Initialize processing stages to match cloud function output
     const initialStages = [
-      { stage: 'criteria_generation', message: 'Analyzing your requirements...', progress: 0, completed: false },
-      { stage: 'bm25_search', message: 'Searching through dataset...', progress: 0, completed: false },
-      { stage: 'llm_refinement', message: 'AI analyzing candidates...', progress: 0, completed: false },
-      { stage: 'results', message: 'Preparing results...', progress: 0, completed: false }
+      { stage: 'CRITERIA', message: 'Analyzing your requirements...', progress: 0, completed: false },
+      { stage: 'DATASET', message: 'Searching through dataset...', progress: 0, completed: false },
+      { stage: 'BM25', message: 'Finding relevant matches...', progress: 0, completed: false },
+      { stage: 'LLM', message: 'AI analyzing candidates...', progress: 0, completed: false }
     ]
     setProcessingStages(initialStages)
     
@@ -586,11 +680,16 @@ export function MultiStageQueryInterface({
         return acc
       }, {} as Record<string, string>)
 
+      // Create AbortController for this search
+      const controller = new AbortController()
+      setAbortController(controller)
+
       // Start cloud function asynchronously (fire and forget)
       try {
         fetch('https://us-central1-snowball-471001.cloudfunctions.net/getRecommendationsV2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             stage: 'search',
             query: query.trim(),
@@ -602,6 +701,11 @@ export function MultiStageQueryInterface({
             queryId: actualQueryId // Pass the actual UUID so cloud function can update database
           })
         }).catch(error => {
+          // Handle cancellation gracefully
+          if (error instanceof Error && error.name === 'AbortError') {
+            console.log('🛑 Search request cancelled by user')
+            return
+          }
           console.error('Cloud function error:', error)
           // Error will be handled by polling mechanism
         })
@@ -887,76 +991,28 @@ export function MultiStageQueryInterface({
         </div>
       )}
 
-      {/* Stage 3: Processing */}
+      {/* Stage 3: Processing - Redirected to History */}
       {currentStage === 'processing' && (
-        <div className="space-y-6">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Brain className="h-6 w-6 text-blue-600 animate-pulse" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">AI is working...</h3>
-            <p className="text-gray-500 text-sm max-w-md mx-auto">
-              Our intelligent system is analyzing thousands of profiles to find your perfect matches.
-            </p>
-            
-            {/* New Search button during processing */}
-            <div className="mt-4">
-              <Button 
-                variant="outline" 
-                onClick={resetComponentState}
-                className="text-blue-600 hover:text-blue-700"
-              >
-                <Search className="h-4 w-4 mr-2" />
-                Start New Search
-              </Button>
-            </div>
+        <div className="text-center py-12">
+          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <History className="h-6 w-6 text-green-600" />
           </div>
-
-          <div className="max-w-lg mx-auto space-y-4">
-            {processingStages.map((stage) => (
-              <div key={stage.stage} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                {stage.completed ? (
-                  <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-white"></div>
-                  </div>
-                ) : (
-                  <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-                )}
-                <div className="flex-1">
-                  <span className={`text-sm font-medium ${stage.completed ? 'text-green-700' : 'text-gray-700'}`}>
-                    {stage.message}
-                  </span>
-                  <div className="mt-1">
-                    <Progress value={stage.progress} className="h-1" />
-                  </div>
-                </div>
-                <span className="text-xs text-gray-500">
-                  {Math.round(stage.progress)}%
-                </span>
-              </div>
-            ))}
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-              <div className="flex items-center justify-center gap-2 text-blue-800 mb-1">
-                <Clock className="h-4 w-4" />
-                <span className="text-sm font-medium">
-                  Estimated time: 30-60 seconds
-                  {pollingStartTime && (
-                    <span className="text-xs ml-2">
-                      (Running for {Math.round((Date.now() - pollingStartTime) / 1000)}s)
-                    </span>
-                  )}
-                </span>
-              </div>
-              <p className="text-xs text-blue-600">
-                Quality takes time - we&apos;re analyzing each profile for the best matches
-              </p>
-              {pollingStartTime && Date.now() - pollingStartTime > 2 * 60 * 1000 && (
-                <p className="text-xs text-orange-600 mt-1">
-                  Taking longer than usual - will timeout after 5 minutes if needed
-                </p>
-              )}
-            </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Search Started Successfully!
+          </h3>
+          <p className="text-gray-500 text-sm max-w-md mx-auto mb-6">
+            Your AI search is now running. You can view real-time progress and results in the <strong>Query History</strong> tab.
+          </p>
+          
+          <div className="space-y-2">
+            <Button 
+              variant="outline" 
+              onClick={resetComponentState}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Start New Search
+            </Button>
           </div>
         </div>
       )}
