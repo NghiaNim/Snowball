@@ -10,6 +10,8 @@ import { UploadInterface } from '@/components/recommendations/UploadInterface'
 import { DatasetManager } from '@/components/recommendations/DatasetManager'
 import { MultiStageQueryInterface } from '@/components/recommendations/MultiStageQueryInterface'
 import { QueryHistory } from '@/components/recommendations/QueryHistory'
+import { UpgradeButton } from '@/components/recommendations/UpgradeButton'
+import { getAuthHeaders } from '@/lib/auth-helpers'
 import { type DatasetSchema } from '@/lib/dataset-analysis'
 
 type TabType = 'upload' | 'datasets' | 'query' | 'history'
@@ -37,6 +39,12 @@ export default function RecommendationsDashboard() {
   const [forceQueryReset, setForceQueryReset] = useState<boolean>(false)
   const [rerunData, setRerunData] = useState<{query: string, datasetId: string, datasetName: string} | null>(null)
   const [availableDatasets, setAvailableDatasets] = useState<SelectedDataset[]>([])
+  const [userUsage, setUserUsage] = useState<{
+    searchCount: number
+    planType: 'free' | 'pro'
+    hasReachedLimit: boolean
+    isSubscribed: boolean
+  } | null>(null)
   const router = useRouter()
 
   // Check authentication on mount
@@ -82,6 +90,29 @@ export default function RecommendationsDashboard() {
       router.push('/recommendations/login')
     }
   }, [isLoading, isAuthenticated, router])
+
+  // Fetch user usage status
+  const fetchUserUsage = async () => {
+    try {
+      const response = await fetch('/api/user/usage', {
+        headers: getAuthHeaders()
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setUserUsage(data.usage)
+      }
+    } catch (error) {
+      console.error('Error fetching user usage:', error)
+    }
+  }
+
+  // Fetch usage when authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchUserUsage()
+    }
+  }, [isAuthenticated, user])
 
   const handleLogout = async () => {
     // Clear admin auth
@@ -154,6 +185,18 @@ export default function RecommendationsDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        {/* Upgrade Button */}
+        {userUsage && (
+          <div className="mb-6">
+            <UpgradeButton 
+              usage={userUsage} 
+              onUpgradeClick={() => {
+                // Refresh usage after potential upgrade
+                setTimeout(() => fetchUserUsage(), 1000)
+              }}
+            />
+          </div>
+        )}
         {/* Navigation Tabs */}
         <div className="mb-6 md:mb-8">
           <nav className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-1 bg-gray-100 rounded-lg p-1">
@@ -226,6 +269,10 @@ export default function RecommendationsDashboard() {
               onSearchStarted={(searchId) => {
                 setActiveSearchId(searchId)
                 setActiveTab('history')
+              }}
+              onUsageLimitExceeded={() => {
+                // Refresh usage status to show updated limits
+                fetchUserUsage()
               }}
               forceReset={forceQueryReset}
               rerunData={rerunData}

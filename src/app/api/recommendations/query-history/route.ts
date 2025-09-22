@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 import { getCurrentUserId } from '@/lib/auth-helpers-server'
+import { canUserSearch, incrementSearchUsage } from '@/lib/usage-helpers'
 
 // Create service role client that bypasses RLS for demo system
 function createRecommendationClient() {
@@ -56,6 +57,18 @@ export async function POST(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
+
+    // Check if user can perform search (hasn't exceeded limits)
+    const { canSearch, usage } = await canUserSearch(userId)
+    
+    if (!canSearch) {
+      return NextResponse.json({ 
+        error: 'Daily search limit exceeded',
+        code: 'USAGE_LIMIT_EXCEEDED',
+        usage: usage,
+        message: `You've reached your daily limit of 5 searches. Upgrade to Pro for unlimited searches.`
+      }, { status: 429 })
+    }
     
     const body = await request.json()
     const { query, datasetId, datasetName, processingStages, customId } = body
@@ -94,6 +107,9 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ Query created with ID:', queryData.id)
+
+    // Increment user's daily search usage
+    await incrementSearchUsage(userId)
 
     return NextResponse.json({ 
       success: true, 

@@ -49,6 +49,7 @@ interface MultiStageQueryProps {
   datasetSchema?: DatasetSchema
   onBackToDatasets: () => void
   onSearchStarted?: (searchId: string) => void
+  onUsageLimitExceeded?: () => void // Callback when usage limit is exceeded
   forceReset?: boolean // Add prop to force component reset
   rerunData?: RerunQueryData | null // Data for rerunning a historical query
   onRerunComplete?: () => void // Callback when rerun setup is complete
@@ -90,6 +91,7 @@ export function MultiStageQueryInterface({
   datasetSchema,
   onBackToDatasets,
   onSearchStarted,
+  onUsageLimitExceeded,
   forceReset = false,
   rerunData = null,
   onRerunComplete
@@ -616,6 +618,13 @@ export function MultiStageQueryInterface({
         
         if (!response.ok) {
           const errorData = await response.json()
+          
+          // Handle usage limit exceeded
+          if (response.status === 429 && errorData.code === 'USAGE_LIMIT_EXCEEDED') {
+            onUsageLimitExceeded?.()
+            throw new Error(errorData.message || 'Daily search limit exceeded')
+          }
+          
           throw new Error(`Failed to save query history: ${errorData.details || errorData.error}`)
         }
         
