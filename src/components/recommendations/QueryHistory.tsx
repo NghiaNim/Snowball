@@ -68,6 +68,7 @@ export function QueryHistory({
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now())
+  const [deletingEntries, setDeletingEntries] = useState<Set<string>>(new Set())
 
   const loadHistory = async (showLoading = true) => {
     if (showLoading) {
@@ -163,6 +164,9 @@ export function QueryHistory({
   }
 
   const deleteEntry = async (id: string) => {
+    // Add to deleting set to show loading state
+    setDeletingEntries(prev => new Set([...prev, id]))
+    
     try {
       const response = await fetch(`/api/recommendations/query-history/${id}`, {
         method: 'DELETE',
@@ -180,6 +184,13 @@ export function QueryHistory({
       const updated = history.filter(entry => entry.id !== id)
       setHistory(updated)
       localStorage.setItem('query-history', JSON.stringify(updated))
+    } finally {
+      // Remove from deleting set
+      setDeletingEntries(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(id)
+        return newSet
+      })
     }
   }
 
@@ -485,9 +496,14 @@ export function QueryHistory({
                       variant="ghost"
                       size="sm"
                       onClick={() => deleteEntry(entry.id)}
+                      disabled={deletingEntries.has(entry.id)}
                       className="text-red-600 hover:text-red-700 w-full sm:w-auto min-h-[44px] px-4"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      {deletingEntries.has(entry.id) ? (
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
                     </Button>
                   </div>
                 </div>

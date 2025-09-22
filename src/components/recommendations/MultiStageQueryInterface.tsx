@@ -787,7 +787,7 @@ export function MultiStageQueryInterface({
           body: JSON.stringify({
             stage: 'search',
             query: query.trim(),
-            datasetId: selectedDataset.id,
+            datasetId: selectedDataset.gcsPath,  // Send GCS path instead of database UUID
             datasetSchema: datasetSchema ? formatSchemaForAI(datasetSchema) : undefined,
             followUpAnswers: processedAnswers,
             limit: candidateCount,

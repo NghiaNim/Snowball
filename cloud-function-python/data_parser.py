@@ -48,23 +48,28 @@ def parse_dataset(dataset_id: str, storage_client: storage.Client) -> List[Dict[
         print(f"❌ Error parsing dataset: {str(error)}")
         raise Exception(f"Failed to parse dataset: {str(error)}")
 
-def download_dataset_buffer(dataset_id: str, storage_client: storage.Client) -> tuple:
+def download_dataset_buffer(dataset_path: str, storage_client: storage.Client) -> tuple:
     """
-    Download dataset as buffer from GCS and return buffer with filename
+    Download dataset as buffer from GCS using full path and return buffer with filename
     """
     try:
         bucket = storage_client.bucket(BUCKET_NAME)
         
-        # Find the file by datasetId (timestamp prefix)
-        blobs = bucket.list_blobs(prefix=f"{RAW_DATASETS_FOLDER}/{dataset_id}")
-        
-        matching_files = list(blobs)
-        if not matching_files:
-            raise Exception(f"Dataset {dataset_id} not found in Google Cloud Storage")
-
-        # Get the first matching file
-        file_blob = matching_files[0]
-        file_name = file_blob.name.split('/')[-1]
+        # Handle both full paths and legacy timestamp prefixes
+        if dataset_path.startswith('raw_datasets/'):
+            # Full GCS path provided (new approach)
+            file_blob = bucket.blob(dataset_path)
+            if not file_blob.exists():
+                raise Exception(f"Dataset {dataset_path} not found in Google Cloud Storage")
+            file_name = dataset_path.split('/')[-1]
+        else:
+            # Legacy: Find the file by datasetId (timestamp prefix)
+            blobs = bucket.list_blobs(prefix=f"{RAW_DATASETS_FOLDER}/{dataset_path}")
+            matching_files = list(blobs)
+            if not matching_files:
+                raise Exception(f"Dataset {dataset_path} not found in Google Cloud Storage")
+            file_blob = matching_files[0]
+            file_name = file_blob.name.split('/')[-1]
         
         print(f"📥 Downloading: {file_blob.name}")
         

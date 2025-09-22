@@ -114,7 +114,7 @@ export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetMan
     setDeletingDataset(dataset.id)
 
     try {
-      const response = await fetch(`/api/recommendations/delete-dataset?gcsPath=${encodeURIComponent(dataset.gcsPath)}`, {
+      const response = await fetch(`/api/recommendations/delete-dataset?id=${encodeURIComponent(dataset.id)}&gcsPath=${encodeURIComponent(dataset.gcsPath)}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       })
