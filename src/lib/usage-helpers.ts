@@ -24,6 +24,16 @@ export interface UserUsage {
  * Get user's current usage and subscription status
  */
 export async function getUserUsageStatus(userId: string): Promise<UserUsage> {
+  // Admin always has pro access
+  if (userId === '00000000-0000-0000-0000-000000000001') {
+    return {
+      searchCount: 0,
+      planType: 'pro',
+      hasReachedLimit: false,
+      isSubscribed: true
+    }
+  }
+
   const supabase = createUsageClient()
   const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
 
@@ -71,6 +81,11 @@ export async function getUserUsageStatus(userId: string): Promise<UserUsage> {
  * Increment user's daily search count
  */
 export async function incrementSearchUsage(userId: string): Promise<boolean> {
+  // Don't track usage for admin users
+  if (userId === '00000000-0000-0000-0000-000000000001') {
+    return true
+  }
+
   const supabase = createUsageClient()
   const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
 

@@ -8,7 +8,7 @@ export async function getClientUserId(): Promise<string | null> {
   // Check admin auth in localStorage
   const adminAuth = localStorage.getItem('production-auth')
   if (adminAuth === 'true') {
-    return '00000000-0000-0000-0000-000000000000' // Admin UUID
+    return '00000000-0000-0000-0000-000000000001' // Demo user UUID from auth.users
   }
 
   // Check Supabase auth

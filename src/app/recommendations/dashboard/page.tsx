@@ -165,6 +165,11 @@ export default function RecommendationsDashboard() {
                 {user && (
                   <div className="text-sm text-gray-600 text-center sm:text-left">
                     Welcome, <span className="font-medium">{user.username}</span>
+                    {userUsage?.isSubscribed && (
+                      <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        PRO
+                      </span>
+                    )}
                     {user.email && (
                       <div className="text-xs text-gray-500">{user.email}</div>
                     )}

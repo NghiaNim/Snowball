@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         processing_status: 'completed',
         row_count: 0, // Will be updated when dataset is processed
+        file_size: file.size,
       })
       .select()
       .single()

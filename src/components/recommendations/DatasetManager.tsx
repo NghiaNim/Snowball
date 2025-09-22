@@ -52,6 +52,7 @@ interface DatabaseDataset {
   user_id: string
   created_at: string
   updated_at: string
+  file_size: number
 }
 
 export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetManagerProps) {
@@ -82,7 +83,7 @@ export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetMan
         customName: dataset.name !== dataset.file_name ? dataset.name : undefined,
         gcsPath: dataset.gcs_path,
         uploadedAt: dataset.created_at,
-        fileSize: 0, // Not available from database, could be fetched separately if needed
+        fileSize: dataset.file_size || 0,
         status: dataset.processing_status === 'completed' ? 'processed' : 
                 dataset.processing_status === 'pending' ? 'processing' :
                 dataset.processing_status === 'failed' ? 'error' : 'uploaded',

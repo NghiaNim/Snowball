@@ -8,9 +8,10 @@ import { createClient } from '@/lib/supabase/server'
 export async function getCurrentUserId(request: NextRequest): Promise<string | null> {
   // Check for admin session first
   const adminAuth = request.headers.get('x-admin-auth')
+  
   if (adminAuth === 'true') {
-    // For admin users, we'll use a special admin UUID
-    return '00000000-0000-0000-0000-000000000000' // Different from the demo UUID
+    // For admin users, we'll use the existing demo user UUID
+    return '00000000-0000-0000-0000-000000000001' // Demo user UUID from auth.users
   }
 
   // Check Supabase authentication

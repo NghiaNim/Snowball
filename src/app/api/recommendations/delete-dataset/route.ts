@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { deleteDatasetFromGCS } from '@/lib/gcs-production'
 import { getCurrentUserId } from '@/lib/auth-helpers-server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 
 export async function DELETE(request: NextRequest) {
   try {
     // Get current user ID
     const userId = await getCurrentUserId(request)
+    
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -32,8 +34,22 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Create Supabase client
-    const supabase = await createClient()
+    // Check if this is an admin user
+    const isAdmin = request.headers.get('x-admin-auth') === 'true'
+    
+    // Create appropriate Supabase client
+    const supabase = isAdmin 
+      ? createServiceRoleClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false
+            }
+          }
+        )
+      : await createClient()
 
     // First, verify the dataset belongs to this user
     const { data: dataset, error: fetchError } = await supabase
