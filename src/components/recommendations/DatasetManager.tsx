@@ -39,6 +39,21 @@ interface UploadedDataset {
   }
 }
 
+interface DatabaseDataset {
+  id: string
+  name: string
+  file_name: string
+  gcs_path: string
+  schema_analysis: { columns?: string[] } | null
+  field_mappings: Record<string, unknown>
+  row_count: number
+  processing_status: string
+  error_message: string | null
+  user_id: string
+  created_at: string
+  updated_at: string
+}
+
 export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetManagerProps) {
   const [datasets, setDatasets] = useState<UploadedDataset[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -60,11 +75,28 @@ export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetMan
         throw new Error(result.error || 'Failed to fetch datasets')
       }
 
-      const newDatasets = result.datasets || []
-      setDatasets(newDatasets)
+      // Transform database response to match expected interface
+      const transformedDatasets = (result.datasets || []).map((dataset: DatabaseDataset) => ({
+        id: dataset.id,
+        originalName: dataset.file_name || dataset.name,
+        customName: dataset.name !== dataset.file_name ? dataset.name : undefined,
+        gcsPath: dataset.gcs_path,
+        uploadedAt: dataset.created_at,
+        fileSize: 0, // Not available from database, could be fetched separately if needed
+        status: dataset.processing_status === 'completed' ? 'processed' : 
+                dataset.processing_status === 'pending' ? 'processing' :
+                dataset.processing_status === 'failed' ? 'error' : 'uploaded',
+        metadata: {
+          rowCount: dataset.row_count || 0,
+          columns: dataset.schema_analysis?.columns || [],
+          fileType: dataset.file_name?.split('.').pop() || 'unknown'
+        }
+      }))
+      
+      setDatasets(transformedDatasets)
       // Notify parent component of dataset changes
       if (onDatasetsChange) {
-        onDatasetsChange(newDatasets)
+        onDatasetsChange(transformedDatasets)
       }
     } catch (fetchError) {
       console.error('Error fetching datasets:', fetchError)
@@ -160,13 +192,17 @@ export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetMan
   }
 
   const formatFileSize = (bytes: number): string => {
+    if (!bytes || isNaN(bytes) || bytes === 0) return 'Unknown size'
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString) return 'Unknown date'
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return 'Invalid date'
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
