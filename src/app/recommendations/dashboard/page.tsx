@@ -5,12 +5,11 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Upload, Database, Search, History, LogOut } from 'lucide-react'
+import { Upload, Database, Search, History, LogOut, Crown } from 'lucide-react'
 import { UploadInterface } from '@/components/recommendations/UploadInterface'
 import { DatasetManager } from '@/components/recommendations/DatasetManager'
 import { MultiStageQueryInterface } from '@/components/recommendations/MultiStageQueryInterface'
 import { QueryHistory } from '@/components/recommendations/QueryHistory'
-import { UpgradeButton } from '@/components/recommendations/UpgradeButton'
 import { getAuthHeaders } from '@/lib/auth-helpers'
 import { type DatasetSchema } from '@/lib/dataset-analysis'
 
@@ -174,10 +173,44 @@ export default function RecommendationsDashboard() {
                     </div>
                   </div>
                 )}
-                <Button onClick={handleLogout} variant="outline" className="w-full sm:w-auto">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </Button>
+                <div className="flex space-x-2">
+                  {userUsage && !userUsage.isSubscribed && (
+                    <Button 
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/stripe/create-checkout', {
+                            method: 'POST',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({
+                              priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID
+                            })
+                          })
+
+                          const data = await response.json()
+
+                          if (data.success && data.url) {
+                            window.location.href = data.url
+                          } else {
+                            console.error('Failed to create checkout session:', data.error)
+                            alert('Failed to start checkout process. Please try again.')
+                          }
+                        } catch (error) {
+                          console.error('Error starting checkout:', error)
+                          alert('Something went wrong. Please try again.')
+                        }
+                      }}
+                      variant="default" 
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                    >
+                      <Crown className="mr-2 h-4 w-4" />
+                      Upgrade
+                    </Button>
+                  )}
+                  <Button onClick={handleLogout} variant="outline" className="w-full sm:w-auto">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -185,18 +218,6 @@ export default function RecommendationsDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        {/* Upgrade Button */}
-        {userUsage && (
-          <div className="mb-6">
-            <UpgradeButton 
-              usage={userUsage} 
-              onUpgradeClick={() => {
-                // Refresh usage after potential upgrade
-                setTimeout(() => fetchUserUsage(), 1000)
-              }}
-            />
-          </div>
-        )}
         {/* Navigation Tabs */}
         <div className="mb-6 md:mb-8">
           <nav className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-1 bg-gray-100 rounded-lg p-1">

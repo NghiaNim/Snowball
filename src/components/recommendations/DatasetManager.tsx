@@ -142,7 +142,7 @@ export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetMan
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | undefined) => {
     const variants = {
       uploaded: 'bg-green-100 text-green-800',
       processing: 'bg-yellow-100 text-yellow-800',
@@ -150,9 +150,11 @@ export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetMan
       error: 'bg-red-100 text-red-800',
     }
     
+    const displayStatus = status || 'unknown'
+    
     return (
       <Badge className={variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800'}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
       </Badge>
     )
   }

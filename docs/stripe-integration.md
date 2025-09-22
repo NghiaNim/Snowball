@@ -42,12 +42,35 @@
 
 ## 🎯 Environment Setup Required
 
+### 1. Get Your Stripe Price ID (Not Product ID!)
+
+In Stripe, you need the **Price ID**, not the Product ID:
+
+1. **Go to Stripe Dashboard** → Products
+2. **Click on your Pro plan product**
+3. **Copy the Price ID** (starts with `price_...`)
+4. **This is different from Product ID** - Product is the item, Price is the specific pricing
+
+### 2. Set Environment Variables
+
 Add these to your `.env.local`:
 ```env
 STRIPE_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_PRODUCT_ID=price_...  # Your Pro plan price ID
+NEXT_PUBLIC_STRIPE_PRICE_ID=price_...  # Your Pro plan PRICE ID (not product ID)
+STRIPE_WEBHOOK_SECRET=whsec_...  # From webhook endpoint in Stripe
 ```
+
+### 3. Set Up Webhook Endpoint
+
+1. **Go to Stripe Dashboard** → Developers → Webhooks
+2. **Add endpoint**: `https://yourdomain.com/api/stripe/webhooks`
+3. **Select events**:
+   - `customer.subscription.created`
+   - `customer.subscription.updated` 
+   - `customer.subscription.deleted`
+   - `checkout.session.completed`
+4. **Copy webhook secret** → add to `STRIPE_WEBHOOK_SECRET`
 
 ## 🧪 Testing the Flow
 

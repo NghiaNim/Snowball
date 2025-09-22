@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
         userId: userId,
       },
       client_reference_id: userId,
+      subscription_data: {
+        metadata: {
+          userId: userId,
+        },
+      },
     })
 
     return NextResponse.json({
