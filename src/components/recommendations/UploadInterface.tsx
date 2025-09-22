@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress'
 import { Upload, FileText, CheckCircle, AlertCircle, X, Cloud } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { analyzeDatasetSchema, type DatasetSchema } from '@/lib/dataset-analysis'
+import { getAuthHeaders } from '@/lib/auth-helpers'
 
 interface UploadInterfaceProps {
   onUploadSuccess: () => void
@@ -145,8 +146,18 @@ export function UploadInterface({ onUploadSuccess }: UploadInterfaceProps) {
       }, 200)
 
       // Upload to API
+      const authHeaders = getAuthHeaders()
+      // Remove Content-Type header for FormData uploads (browser sets it automatically)
+      const headersWithoutContentType: HeadersInit = {}
+      Object.entries(authHeaders).forEach(([key, value]) => {
+        if (key !== 'Content-Type') {
+          (headersWithoutContentType as Record<string, string>)[key] = value as string
+        }
+      })
+      
       const response = await fetch('/api/recommendations/upload-dataset', {
         method: 'POST',
+        headers: headersWithoutContentType,
         body: formData,
       })
 

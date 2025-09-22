@@ -25,6 +25,7 @@ import {
   CheckCircle
 } from 'lucide-react'
 import { formatSchemaForAI, type DatasetSchema } from '@/lib/dataset-analysis'
+import { getAuthHeaders } from '@/lib/auth-helpers'
 
 interface SelectedDataset {
   id: string
@@ -157,7 +158,6 @@ export function MultiStageQueryInterface({
   useEffect(() => {
     if (rerunData) {
       console.log('🔄 Rerun data provided - setting up query rerun:', rerunData)
-      console.log('🔄 Query being set to:', rerunData.query)
       
       // Cancel any ongoing queries first
       cancelOngoingQuery()
@@ -175,8 +175,6 @@ export function MultiStageQueryInterface({
       setProcessingStages([])
       setHasUserInteracted(true) // Mark as interacted since we're pre-filling
       setPollingStartTime(null)
-      
-      console.log('✅ Rerun setup complete, query state should be:', rerunData.query)
       
       // Call callback to let parent know rerun setup is complete
       if (onRerunComplete) {
@@ -375,7 +373,9 @@ export function MultiStageQueryInterface({
           return
         }
 
-        const response = await fetch(`/api/recommendations/query-history/${activeQueryId}`)
+        const response = await fetch(`/api/recommendations/query-history/${activeQueryId}`, {
+          headers: getAuthHeaders()
+        })
         if (response.ok) {
           const data = await response.json()
           const query = data.query
@@ -519,7 +519,9 @@ export function MultiStageQueryInterface({
         // Trigger a fresh poll when user returns to the tab
         const pollOnce = async () => {
           try {
-            const response = await fetch(`/api/recommendations/query-history/${activeQueryId}`)
+            const response = await fetch(`/api/recommendations/query-history/${activeQueryId}`, {
+          headers: getAuthHeaders()
+        })
             if (response.ok) {
               const data = await response.json()
               const query = data.query
@@ -581,7 +583,7 @@ export function MultiStageQueryInterface({
         console.log('🔄 Updating query in database:', queryData.id)
         const response = await fetch('/api/recommendations/query-history', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             queryId: queryData.id,
             status: queryData.status,
@@ -602,7 +604,7 @@ export function MultiStageQueryInterface({
         console.log('📝 Creating new query in database')
         const response = await fetch('/api/recommendations/query-history', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             query: queryData.query,
             datasetId: queryData.datasetId,
@@ -945,7 +947,6 @@ export function MultiStageQueryInterface({
                 placeholder="e.g., Healthcare investors for my AI startup"
                 value={query}
                 onChange={(e) => {
-                  console.log('📝 Query input changed to:', e.target.value)
                   setQuery(e.target.value)
                   setHasUserInteracted(true)
                 }}

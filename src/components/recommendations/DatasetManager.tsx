@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { getAuthHeaders } from '@/lib/auth-helpers'
 import { 
   Database, 
   FileText, 
@@ -50,7 +51,9 @@ export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetMan
     setError(null)
 
     try {
-      const response = await fetch('/api/recommendations/list-datasets')
+      const response = await fetch('/api/recommendations/list-datasets', {
+        headers: getAuthHeaders()
+      })
       const result = await response.json()
 
       if (!response.ok) {
@@ -81,6 +84,7 @@ export function DatasetManager({ onSelectDataset, onDatasetsChange }: DatasetMan
     try {
       const response = await fetch(`/api/recommendations/delete-dataset?gcsPath=${encodeURIComponent(dataset.gcsPath)}`, {
         method: 'DELETE',
+        headers: getAuthHeaders()
       })
 
       const result = await response.json()

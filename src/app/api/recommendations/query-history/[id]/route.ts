@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
+import { getCurrentUserId } from '@/lib/auth-helpers-server'
 
 // Create service role client that bypasses RLS for demo system
 function createRecommendationClient() {
@@ -20,6 +21,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getCurrentUserId(request)
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
     const { id: queryId } = await params
 
     if (!queryId) {
@@ -27,16 +34,13 @@ export async function DELETE(
     }
 
     const supabase = createRecommendationClient()
-    
-    // For demo purposes, we'll use a hardcoded UUID since we're using localStorage auth
-    const demoUserId = '00000000-0000-0000-0000-000000000001'
 
     // Delete the query (processing stages will be deleted automatically due to CASCADE)
     const { error } = await supabase
       .from('query_history')
       .delete()
       .eq('id', queryId)
-      .eq('user_id', demoUserId) // Ensure user can only delete their own queries
+      .eq('user_id', userId) // Ensure user can only delete their own queries
 
     if (error) {
       console.error('❌ Error deleting query:', error)
@@ -56,6 +60,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getCurrentUserId(request)
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
     const { id: queryId } = await params
 
     console.log('🔍 Fetching query with ID:', queryId)
@@ -75,9 +85,6 @@ export async function GET(
     }
 
     const supabase = createRecommendationClient()
-    
-    // For demo purposes, we'll use a hardcoded UUID since we're using localStorage auth
-    const demoUserId = '00000000-0000-0000-0000-000000000001'
 
     const { data: query, error } = await supabase
       .from('query_history')
@@ -86,7 +93,7 @@ export async function GET(
         query_processing_stages (*)
       `)
       .eq('id', queryId)
-      .eq('user_id', demoUserId)
+      .eq('user_id', userId)
       .single()
 
     if (error) {

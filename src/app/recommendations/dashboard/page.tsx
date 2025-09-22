@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Upload, Database, Search, History, LogOut } from 'lucide-react'
@@ -30,7 +31,8 @@ export default function RecommendationsDashboard() {
   const [selectedDatasetSchema, _setSelectedDatasetSchema] = useState<DatasetSchema | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [user, setUser] = useState<{ username: string; loginTime: string } | null>(null)
+  const [user, setUser] = useState<{ username: string; loginTime: string; type: 'admin' | 'google'; email?: string } | null>(null)
+  const supabase = createClient()
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null)
   const [forceQueryReset, setForceQueryReset] = useState<boolean>(false)
   const [rerunData, setRerunData] = useState<{query: string, datasetId: string, datasetName: string} | null>(null)
@@ -39,13 +41,32 @@ export default function RecommendationsDashboard() {
 
   // Check authentication on mount
   useEffect(() => {
-    const checkAuth = () => {
-      const auth = localStorage.getItem('production-auth')
-      const userData = localStorage.getItem('production-user')
+    const checkAuth = async () => {
+      // Check admin auth first
+      const adminAuth = localStorage.getItem('production-auth')
+      const adminUserData = localStorage.getItem('production-user')
       
-      if (auth === 'true' && userData) {
+      if (adminAuth === 'true' && adminUserData) {
+        const adminUser = JSON.parse(adminUserData)
         setIsAuthenticated(true)
-        setUser(JSON.parse(userData))
+        setUser({
+          ...adminUser,
+          type: 'admin'
+        })
+        setIsLoading(false)
+        return
+      }
+
+      // Check Supabase/Google auth
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        setIsAuthenticated(true)
+        setUser({
+          username: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+          email: session.user.email || '',
+          loginTime: session.user.created_at,
+          type: 'google'
+        })
       } else {
         setIsAuthenticated(false)
       }
@@ -53,7 +74,7 @@ export default function RecommendationsDashboard() {
     }
 
     checkAuth()
-  }, [])
+  }, [supabase.auth])
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -62,9 +83,14 @@ export default function RecommendationsDashboard() {
     }
   }, [isLoading, isAuthenticated, router])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Clear admin auth
     localStorage.removeItem('production-auth')
     localStorage.removeItem('production-user')
+    
+    // Clear Supabase auth
+    await supabase.auth.signOut()
+    
     router.push('/recommendations/login')
   }
 
@@ -109,8 +135,11 @@ export default function RecommendationsDashboard() {
                 {user && (
                   <div className="text-sm text-gray-600 text-center sm:text-left">
                     Welcome, <span className="font-medium">{user.username}</span>
+                    {user.email && (
+                      <div className="text-xs text-gray-500">{user.email}</div>
+                    )}
                     <div className="text-xs text-gray-500">
-                      Since {new Date(user.loginTime).toLocaleDateString()}
+                      {user.type === 'admin' ? 'Admin' : 'Google User'} • Since {new Date(user.loginTime).toLocaleDateString()}
                     </div>
                   </div>
                 )}
@@ -139,15 +168,15 @@ export default function RecommendationsDashboard() {
                       ? 'bg-white shadow-sm text-blue-600' 
                       : 'hover:bg-gray-200 text-gray-700'
                   }`}
-                onClick={() => {
-                  setActiveTab(tab.id)
-                  // Force reset when switching to query tab, but NOT during rerun
-                  if (tab.id === 'query' && !rerunData) {
-                    setForceQueryReset(true)
-                    // Reset the force flag after component has time to process it
-                    setTimeout(() => setForceQueryReset(false), 100)
-                  }
-                }}
+                  onClick={() => {
+                    setActiveTab(tab.id)
+                    // Force reset when switching to query tab
+                    if (tab.id === 'query') {
+                      setForceQueryReset(true)
+                      // Reset the force flag after component has time to process it
+                      setTimeout(() => setForceQueryReset(false), 100)
+                    }
+                  }}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
                   <span className="truncate">{tab.label}</span>

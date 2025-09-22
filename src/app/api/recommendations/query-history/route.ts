@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
+import { getCurrentUserId } from '@/lib/auth-helpers-server'
 
 // Create service role client that bypasses RLS for demo system
 function createRecommendationClient() {
@@ -15,14 +16,15 @@ function createRecommendationClient() {
 }
 
 // GET: Fetch user's query history
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = createRecommendationClient()
+    const userId = await getCurrentUserId(request)
     
-    // For demo purposes, we'll use a hardcoded UUID since we're using localStorage auth
-    // In production, you'd get this from the authenticated user
-    const demoUserId = '00000000-0000-0000-0000-000000000001'
+    if (!userId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
+    const supabase = createRecommendationClient()
     
     const { data: queries, error } = await supabase
       .from('query_history')
@@ -30,7 +32,7 @@ export async function GET(_request: NextRequest) {
         *,
         query_processing_stages (*)
       `)
-      .eq('user_id', demoUserId)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(50)
 
@@ -49,19 +51,22 @@ export async function GET(_request: NextRequest) {
 // POST: Create new query entry
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getCurrentUserId(request)
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
     const body = await request.json()
     const { query, datasetId, datasetName, processingStages, customId } = body
 
-    console.log('📝 Creating query:', { query, datasetId, datasetName, customId })
+    console.log('📝 Creating query:', { query, datasetId, datasetName, customId, userId })
 
     if (!query || !datasetId || !datasetName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     const supabase = createRecommendationClient()
-    
-    // For demo purposes, we'll use a hardcoded UUID since we're using localStorage auth
-    const demoUserId = '00000000-0000-0000-0000-000000000001'
 
     // Create query entry - let database generate the UUID
     const insertData = {
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
       dataset_id: datasetId,
       dataset_name: datasetName,
       status: 'processing' as const,
-      user_id: demoUserId,
+      user_id: userId,
       processing_stages: processingStages || [],
       metadata: customId ? { customId } : {}
     }

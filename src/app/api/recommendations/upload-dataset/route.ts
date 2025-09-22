@@ -1,8 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { uploadDatasetToGCS } from '@/lib/gcs-production'
+import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
+import { getCurrentUserId } from '@/lib/auth-helpers-server'
+
+// Create service role client that bypasses RLS for demo system
+function createRecommendationClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  
+  return createServiceRoleClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  })
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getCurrentUserId(request)
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
     const formData = await request.formData()
     const file = formData.get('file') as File
     const datasetName = formData.get('datasetName') as string
@@ -53,12 +74,41 @@ export async function POST(request: NextRequest) {
       customName: datasetName,
     })
 
-    console.log(`✅ Successfully uploaded dataset: ${file.name}`)
+    // Save dataset info to database with user association
+    const supabase = createRecommendationClient()
+    
+    const { data: dbDataset, error: dbError } = await supabase
+      .from('datasets')
+      .insert({
+        name: datasetName,
+        file_name: file.name,
+        gcs_path: uploadedDataset.gcsPath,
+        user_id: userId,
+        processing_status: 'completed',
+        row_count: 0, // Will be updated when dataset is processed
+      })
+      .select()
+      .single()
+
+    if (dbError) {
+      console.error('❌ Error saving dataset to database:', dbError)
+      // Note: The file was uploaded to GCS but not tracked in DB
+      return NextResponse.json({
+        error: 'Failed to save dataset information',
+        details: dbError.message
+      }, { status: 500 })
+    }
+
+    console.log(`✅ Successfully uploaded dataset: ${file.name} for user ${userId}`)
 
     return NextResponse.json({
       success: true,
-      dataset: uploadedDataset,
-      message: 'Dataset uploaded successfully to Google Cloud Storage'
+      dataset: {
+        ...uploadedDataset,
+        id: dbDataset.id,
+        user_id: userId
+      },
+      message: 'Dataset uploaded successfully'
     })
 
   } catch (error) {

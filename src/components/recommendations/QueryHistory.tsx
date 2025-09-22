@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { getAuthHeaders } from '@/lib/auth-helpers'
 import { 
   History, 
   Search, 
@@ -73,7 +74,9 @@ export function QueryHistory({
       setIsLoading(true)
     }
     try {
-      const response = await fetch('/api/recommendations/query-history')
+      const response = await fetch('/api/recommendations/query-history', {
+        headers: getAuthHeaders()
+      })
       
       if (response.ok) {
         const data = await response.json()
@@ -143,7 +146,10 @@ export function QueryHistory({
         // Delete all queries for the user (we'd need a bulk delete endpoint)
         // For now, delete each query individually
         const deletePromises = history.map(entry => 
-          fetch(`/api/recommendations/query-history/${entry.id}`, { method: 'DELETE' })
+          fetch(`/api/recommendations/query-history/${entry.id}`, { 
+            method: 'DELETE',
+            headers: getAuthHeaders()
+          })
         )
         await Promise.all(deletePromises)
         setHistory([])
@@ -159,7 +165,8 @@ export function QueryHistory({
   const deleteEntry = async (id: string) => {
     try {
       const response = await fetch(`/api/recommendations/query-history/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       })
       
       if (response.ok) {
