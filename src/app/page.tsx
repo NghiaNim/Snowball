@@ -3,64 +3,54 @@
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useEffect, useRef } from 'react'
-import Typed from 'typed.js'
 
 export default function Home() {
-  const typedRef = useRef<HTMLSpanElement>(null)
-
-  useEffect(() => {
-    if (typedRef.current) {
-      const typed = new Typed(typedRef.current, {
-        strings: ['Maximize your connections', 'Maximize your time', 'Maximize your ROI'],
-        typeSpeed: 60,
-        backSpeed: 40,
-        backDelay: 1500,
-        startDelay: 300,
-        loop: true,
-        showCursor: false,
-        smartBackspace: true,
-      })
-
-      return () => {
-        typed.destroy()
-      }
+  const scrollToSignup = () => {
+    const signupSection = document.getElementById('signup-links');
+    if (signupSection) {
+      signupSection.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [])
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
-      <header className="bg-black/80 backdrop-blur-md border-b border-gray-800 sticky top-0 z-50">
+      <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4 md:py-6">
             <div className="flex items-center">
               <Image
                 src="/snowball.png"
                 alt="Snowball Logo"
-                width={32}
-                height={32}
-                className="mr-3"
+                width={28}
+                height={28}
+                className="mr-2 md:mr-3 md:w-8 md:h-8"
               />
-              <h1 className="text-xl md:text-2xl font-bold text-white">Snowball</h1>
+              <h1 className="text-lg md:text-2xl font-bold text-gray-900">Snowball</h1>
             </div>
             
-            {/* Navigation */}
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/recommendations/login">
-                <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white hover:bg-gray-800 font-medium">
-                  Login
-                </Button>
+            {/* Mobile Navigation */}
+            <div className="flex items-center space-x-1 md:hidden overflow-x-auto scrollbar-hide flex-shrink-0 min-w-0">
+              <Link href="/demo">
+                <Button variant="ghost" size="sm" className="text-xs px-2 whitespace-nowrap">Demo</Button>
               </Link>
+              <Link href="/auth/founder/signin">
+                <Button variant="ghost" size="sm" className="text-xs px-2 whitespace-nowrap">Login</Button>
+              </Link>
+              <Button size="sm" className="text-xs px-2 whitespace-nowrap" onClick={scrollToSignup}>
+                Start
+              </Button>
             </div>
 
-            {/* Mobile Navigation */}
-            <div className="flex items-center space-x-2 md:hidden">
-              <Link href="/recommendations/login">
-                <Button variant="ghost" size="sm" className="text-xs px-2 text-gray-300 hover:text-white">
-                  Login
-                </Button>
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-4">
+              <Link href="/demo">
+                <Button variant="ghost" size="sm" className="h-9 px-4">Demo</Button>
               </Link>
+              <Link href="/auth/founder/signin">
+                <Button variant="ghost" size="sm" className="h-9 px-4">Founder Login</Button>
+              </Link>
+              <Button size="sm" className="h-9 px-4" onClick={scrollToSignup}>Get Started</Button>
             </div>
           </div>
         </div>
@@ -68,110 +58,168 @@ export default function Home() {
 
       {/* Hero Section */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="pt-16 pb-16 text-center md:pt-24 md:pb-20 lg:pt-32">
-          <div className="max-w-5xl mx-auto">
-            {/* Main Headline */}
-            <h1 className="text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-8xl mb-8 leading-tight">
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-blue-600 mt-2">
-                Meet the right people
-              </span>
-            </h1>
+        <div className="pt-12 pb-12 text-center md:pt-20 md:pb-16 lg:pt-32">
+          <h1 className="mx-auto max-w-4xl font-display text-3xl font-medium tracking-tight text-slate-900 sm:text-5xl lg:text-7xl">
+            Connect
+            <span className="relative whitespace-nowrap text-blue-600">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 418 42"
+                className="absolute top-2/3 left-0 h-[0.58em] w-full fill-blue-300/70"
+                preserveAspectRatio="none"
+              >
+                <path d="m203.371.916c-26.013-2.078-76.686 1.963-124.73 9.946L67.3 12.749C35.421 18.062 18.2 21.766 6.004 25.934 1.244 27.561.828 27.778.874 28.61c.07 1.214.828 1.121 9.595-1.176 9.072-2.377 17.15-3.92 39.246-7.496C123.565 7.986 157.869 4.492 195.942 5.046c7.461.108 19.25 1.696 19.17 2.582-.107 1.183-7.874 4.31-25.75 10.366-21.992 7.45-35.43 12.534-36.701 13.884-2.173 2.308-.202 4.407 4.442 4.734 2.654.187 3.263.157 15.593-.78 35.401-2.686 57.944-3.488 88.365-3.143 46.327.526 75.721 2.23 130.788 7.584 19.787 1.924 20.814 1.98 24.557 1.332l.066-.011c1.201-.203 1.53-1.825.399-2.335-2.911-1.31-4.893-1.604-22.048-3.261-57.509-5.556-87.871-7.36-132.059-7.842-23.239-.254-33.617-.116-50.627.674-11.629.54-42.371 2.494-46.696 2.967-2.359.259 8.133-3.625 26.504-9.81 23.239-7.825 27.934-10.149 28.304-14.005.417-4.348-3.529-6-16.878-7.066Z" />
+              </svg>
+              <span className="relative"> founders</span>
+            </span>{' '}
+            with{' '}
+            <span className="relative whitespace-nowrap text-blue-600">
+              <span className="relative">investors</span>
+            </span>{' '}
+            through curated tribes
+          </h1>
+          <p className="mx-auto mt-4 md:mt-6 max-w-2xl text-base md:text-lg tracking-tight text-slate-700 px-4">
+            Snowball connects early-stage startups with investors through
+            tribe-based networking. Join communities built around accelerators,
+            universities, companies, and shared experiences.
+          </p>
+          <div className="mt-6 md:mt-10 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 lg:gap-6" id="signup-links">
+            <Link href="https://founder.joinsnowball.io" target="_blank" rel="noopener noreferrer">
+              <Button size="lg" className="w-full sm:w-auto text-white bg-blue-600 hover:bg-blue-700">I&apos;m a Founder</Button>
+            </Link>
+            <Link href="https://investor.joinsnowball.io" target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto text-blue-600 border-blue-600 hover:bg-blue-50">
+                I&apos;m an Investor
+              </Button>
+            </Link>
+          </div>
+        </div>
 
-            {/* Dynamic Text Section */}
-            <div className="mb-16">
-              <div className="text-center">
-                <div className="flex flex-wrap items-baseline justify-center gap-x-4 gap-y-2 text-4xl md:text-5xl lg:text-6xl font-bold text-gray-100 mb-4 leading-tight">
-                  <span 
-                    ref={typedRef}
-                    className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 text-center"
-                  >
-                  </span>
-                </div>
-                <div className="mx-auto mt-4 w-48 md:w-64 lg:w-80 h-[2px] bg-gray-700/40 rounded-full data-stream"></div>
-              </div>
+        {/* Feature Sections */}
+        <div className="py-12 md:py-16">
+          <div className="grid grid-cols-1 gap-y-12 md:gap-y-16 lg:grid-cols-2 lg:gap-x-12">
+            {/* For Founders */}
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">For Founders</h2>
+              <p className="mt-3 md:mt-4 text-base md:text-lg text-gray-600">
+                Get discovered by the right investors through tribe connections
+              </p>
+              <ul className="mt-8 space-y-4">
+                <li className="flex">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
+                      ✓
+                    </div>
+                  </div>
+                  <p className="ml-3 text-gray-700">
+                    Create compelling company profiles with pitch decks and
+                    traction updates
+                  </p>
+                </li>
+                <li className="flex">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
+                      ✓
+                    </div>
+                  </div>
+                  <p className="ml-3 text-gray-700">
+                    Get tracked by investors who share your tribe connections
+                  </p>
+                </li>
+                <li className="flex">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
+                      ✓
+                    </div>
+                  </div>
+                  <p className="ml-3 text-gray-700">
+                    Receive meeting requests from interested VCs and angels
+                  </p>
+                </li>
+              </ul>
             </div>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row justify-center gap-6">
-              <a href="https://forms.gle/uocZz7Et3UjfkGGT7" target="_blank" rel="noopener noreferrer">
-                <Button 
-                  size="lg" 
-                  className="w-full sm:w-auto h-14 px-12 text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-xl font-medium rounded-lg border-0 shadow-2xl hover:shadow-blue-500/25 transition-all duration-300"
-                >
-                  Apply Now
-                </Button>
-              </a>
+            {/* For Investors */}
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">For Investors</h2>
+              <p className="mt-3 md:mt-4 text-base md:text-lg text-gray-600">
+                Discover high-quality deal flow through trusted networks
+              </p>
+              <ul className="mt-8 space-y-4">
+                <li className="flex">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
+                      ✓
+                    </div>
+                  </div>
+                  <p className="ml-3 text-gray-700">
+                    Access curated startups from your alumni networks and
+                    connections
+                  </p>
+                </li>
+                <li className="flex">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
+                      ✓
+                    </div>
+                  </div>
+                  <p className="ml-3 text-gray-700">
+                    Set investment criteria and get personalized deal
+                    recommendations
+                  </p>
+          </li>
+                <li className="flex">
+                  <div className="flex-shrink-0">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
+                      ✓
+                    </div>
+                  </div>
+                  <p className="ml-3 text-gray-700">
+                    Track interesting companies and request meetings directly
+                  </p>
+          </li>
+              </ul>
             </div>
           </div>
         </div>
 
-        {/* Features Section */}
-        <div className="py-20 md:py-32">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+        {/* Tribes Section */}
+        <div className="py-12 md:py-16">
+          <h2 className="text-center text-2xl md:text-3xl font-bold text-gray-900">
+            Join Your Tribe
+          </h2>
+          <p className="text-center mt-3 md:mt-4 text-base md:text-lg text-gray-600 px-4">
+            Connect through communities built around shared experiences
+          </p>
+          <div className="mt-8 md:mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-6">
             {[
-              {
-                title: 'Identify',
-                description: 'Quickly prioritize who you want to meet in advance of any event, conference, or trip',
-                icon: '🎯'
-              },
-              {
-                title: 'Outreach',
-                description: 'Proactively invite them to set aside time to connect',
-                icon: '📧'
-              },
-              {
-                title: 'Schedule',
-                description: 'Ensure your calendar is always filled with meetings that will move you forward',
-                icon: '📅'
-              },
-              {
-                title: 'Maximize ROI',
-                description: 'Get the most out of your time and investment with others',
-                icon: '📈'
-              }
-            ].map((feature) => (
-              <div 
-                key={feature.title}
-                className="group p-8 rounded-2xl bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700 hover:border-gray-600 backdrop-blur-sm transition-all duration-300 hover:transform hover:scale-105"
+              'Y Combinator Alumni',
+              'Stanford Network',
+              'Ex-Google/Meta',
+              'Techstars Community',
+              'MIT Connections',
+              'Angel Groups',
+            ].map((tribe) => (
+              <div
+                key={tribe}
+                className="rounded-lg bg-white p-4 md:p-6 shadow-sm ring-1 ring-gray-200"
               >
-                <div className="text-4xl mb-6 group-hover:scale-110 transition-transform duration-300">
-                  {feature.icon}
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-4">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-400 leading-relaxed">
-                  {feature.description}
+                <h3 className="text-sm md:text-base font-semibold text-gray-900">{tribe}</h3>
+                <p className="mt-2 text-xs md:text-sm text-gray-600">
+                  Connect with founders and investors from your network
                 </p>
               </div>
             ))}
           </div>
         </div>
-
-        {/* Bottom CTA */}
-        <div className="py-20 text-center">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-              Ready to maximize your time meeting the right people
-            </h2>
-            <a href="https://forms.gle/uocZz7Et3UjfkGGT7" target="_blank" rel="noopener noreferrer">
-              <Button 
-                size="lg" 
-                className="h-14 px-12 text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-xl font-medium rounded-lg shadow-2xl hover:shadow-blue-500/25 transition-all duration-300"
-              >
-                Apply Now
-              </Button>
-            </a>
-          </div>
-        </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-black/80 border-t border-gray-800">
+      <footer className="bg-white">
         <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-12 md:flex md:items-center md:justify-between lg:px-8">
           <div className="md:order-1">
-            <p className="text-center text-xs leading-5 text-gray-400">
-              &copy; 2025 Snowball. All rights reserved.
+            <p className="text-center text-xs leading-5 text-gray-500">
+              &copy; 2024 Snowball. All rights reserved.
             </p>
           </div>
         </div>

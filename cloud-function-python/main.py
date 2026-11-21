@@ -42,8 +42,26 @@ def get_supabase_client() -> Client:
         print(f"   SUPABASE_SERVICE_ROLE_KEY: {'✅' if supabase_service_key else '❌'}")
         return None
     
-    print(f"🔗 Connecting to Supabase: {supabase_url}")
-    return create_client(supabase_url, supabase_service_key)
+    try:
+        print(f"🔗 Connecting to Supabase: {supabase_url}")
+        client = create_client(supabase_url, supabase_service_key)
+        print("✅ Supabase client initialized successfully")
+        return client
+    except Exception as error:
+        print(f"❌ Failed to initialize Supabase client: {str(error)}")
+        print(f"   Error type: {type(error).__name__}")
+        # Import version info for debugging
+        try:
+            import supabase
+            print(f"   Supabase version: {supabase.__version__}")
+        except:
+            print("   Could not determine Supabase version")
+        try:
+            import httpx
+            print(f"   httpx version: {httpx.__version__}")
+        except:
+            print("   Could not determine httpx version")
+        return None
 
 # In-memory storage for async results (use Redis/Firestore in production)
 results_store = {}
@@ -200,7 +218,7 @@ def execute_search_pipeline(
                 print(f'⚠️  Failed to update progress: {str(e)}')
     
     try:
-        log_stage('🚀 INIT', f'Starting search pipeline for query: "{query}"', 0)
+        log_stage('🚀 CRITERIA', f'Starting search pipeline for query: "{query}"', 0)
         log_stage('📝 CRITERIA', 'Analyzing requirements and translating query to search criteria...', 10)
         
         # Stage 2: Query to Criteria Translation
@@ -227,7 +245,7 @@ def execute_search_pipeline(
         log_stage('🧠 LLM', f'✅ GPT-4o analysis completed: {len(refined_results)} final recommendations', 90)
 
         processing_time = time.time() - start_time
-        log_stage('🎯 COMPLETE', f'✅ Search pipeline completed in {processing_time:.1f}s', 100)
+        log_stage('🎯 LLM', f'✅ Search pipeline completed in {processing_time:.1f}s', 100)
 
         # Final database update
         if query_id:
@@ -259,7 +277,7 @@ def execute_search_pipeline(
 
     except Exception as error:
         elapsed = time.time() - start_time
-        log_stage('❌ ERROR', f'Pipeline failed after {elapsed:.1f}s: {str(error)}')
+        log_stage('❌ LLM', f'Pipeline failed after {elapsed:.1f}s: {str(error)}')
         
         # Update database with error if query_id provided
         if query_id:

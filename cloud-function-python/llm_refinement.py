@@ -200,6 +200,7 @@ Provide detailed analysis for each candidate.
                 'bm25_score': candidate['bm25_score'],
                 'llm_relevance_score': llm_analysis['llm_relevance_score'],
                 'overall_score': round(overall_score, 3),
+                'match_score': round(overall_score, 3),  # Frontend expects match_score
                 'llm_analysis': llm_analysis['detailed_analysis'],
                 'match_strengths': llm_analysis.get('match_strengths', []),
                 'potential_concerns': llm_analysis.get('potential_concerns', []),
@@ -279,6 +280,7 @@ def create_fallback_candidate(
         'bm25_score': candidate['bm25_score'],
         'llm_relevance_score': fallback_llm_score,
         'overall_score': round(overall_score, 3),
+        'match_score': round(overall_score, 3),  # Frontend expects match_score
         'llm_analysis': 'Candidate shows good text relevance based on keyword matching. Manual review recommended for detailed assessment.',
         'match_strengths': candidate.get('preliminary_reasons', ['Good text relevance']),
         'potential_concerns': ['Requires manual review'],
@@ -310,6 +312,7 @@ def fallback_refinement(
             'bm25_score': candidate['bm25_score'],
             'llm_relevance_score': 0.5,  # Neutral score
             'overall_score': round(overall_score, 3),
+            'match_score': round(overall_score, 3),  # Frontend expects match_score
             'llm_analysis': 'LLM analysis not available. Ranking based on text relevance and field matches.',
             'match_strengths': candidate.get('preliminary_reasons', ['Text relevance']),
             'potential_concerns': ['Manual review recommended'],
